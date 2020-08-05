@@ -844,6 +844,8 @@ MagickExport Image *ReadImage(const ImageInfo *image_info,
     image=next;
   }
   read_info=DestroyImageInfo(read_info);
+  if (GetBlobError(image) != MagickFalse)
+    ThrowReaderException(CorruptImageError,"UnableToReadImageData");
   return(GetFirstImageInList(image));
 }
 
@@ -1277,6 +1279,8 @@ MagickExport MagickBooleanType WriteImage(const ImageInfo *image_info,
       (write_info->verbose != MagickFalse))
     (void) IdentifyImage(image,stdout,MagickFalse,exception);
   write_info=DestroyImageInfo(write_info);
+  if (GetBlobError(image) != MagickFalse)
+    ThrowWriterException(FileOpenError,"UnableToWriteFile");
   return(status);
 }
 

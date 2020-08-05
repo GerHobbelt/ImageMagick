@@ -27,7 +27,7 @@ AC_PREREQ(2.69)
 m4_define([magick_major_version], [7])
 m4_define([magick_minor_version], [0])
 m4_define([magick_micro_version], [10])
-m4_define([magick_patchlevel_version], [10])
+m4_define([magick_patchlevel_version], [25])
 m4_define([magick_version],
           [magick_major_version.magick_minor_version.magick_micro_version-magick_patchlevel_version])
 m4_define([magick_git_revision],
@@ -560,6 +560,14 @@ if test "$enable_largefile" != no; then
     fi
 fi
 AC_SUBST(LFS_CPPFLAGS)
+
+#
+# Set SETJMP_IS_THREAD_SAFE define.
+#
+case "${host_os}" in
+  solaris2* ) ;;
+  *) AC_DEFINE(SETJMP_IS_THREAD_SAFE,1,[Setjmp/longjmp are thread safe]) ;;
+esac
 
 # Configure libtool
 : ${AR_FLAGS=cr}
@@ -3104,7 +3112,7 @@ BPGEncodeDelegateDefault='bpgenc'
 BlenderDecodeDelegateDefault='blender'
 BrowseDelegateDefault='xdg-open'
 DNGDecodeDelegateDefault='ufraw-batch'
-DOCDecodeDelegateDefault='soffice'
+DOCDecodeDelegateDefault='libreoffice'
 GVCDecodeDelegateDefault='dot'
 DVIDecodeDelegateDefault='dvips'
 EditorDelegateDefault='xterm'

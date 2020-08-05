@@ -1465,9 +1465,9 @@ static MagickBooleanType GetEXIFProperty(const Image *image,
           dir_offset=(ssize_t) ReadPropertySignedLong(endian,q+8);
           if ((dir_offset < 0) || (size_t) dir_offset >= length)
             continue;
-          if ((ssize_t) (dir_offset+number_bytes) < dir_offset)
+          if (((size_t) dir_offset+number_bytes) < (size_t) dir_offset)
             continue;  /* prevent overflow */
-          if ((size_t) (dir_offset+number_bytes) > length)
+          if (((size_t) dir_offset+number_bytes) > length)
             continue;
           p=(unsigned char *) (exif+dir_offset);
         }
@@ -2704,6 +2704,15 @@ static const char *GetMagickPropertyLetter(ImageInfo *image_info,
       string=image->magick_filename;
       break;
     }
+    case 'N': /* Number of images in the list.  */
+    {
+      if ((image != (Image *) NULL) && (image->next == (Image *) NULL))
+        (void) FormatLocaleString(value,MagickPathExtent,"%.20g\n",(double)
+          GetImageListLength(image));
+      else
+        string="";
+      break;
+    }
     case 'O': /* layer canvas offset with sign = "+%X+%Y" */
     {
       WarnNoImageReturn("\"%%%c\"",letter);
@@ -3494,7 +3503,6 @@ MagickExport char *InterpretImageProperties(ImageInfo *image_info,Image *image,
   const char *embed_text,ExceptionInfo *exception)
 {
 #define ExtendInterpretText(string_length) \
-DisableMSCWarning(4127) \
 { \
   size_t length=(string_length); \
   if ((size_t) (q-interpret_text+length+1) >= extent) \
@@ -3512,11 +3520,9 @@ DisableMSCWarning(4127) \
         } \
       q=interpret_text+strlen(interpret_text); \
    } \
-} \
-RestoreMSCWarning
+}
 
 #define AppendKeyValue2Text(key,value)\
-DisableMSCWarning(4127) \
 { \
   size_t length=strlen(key)+strlen(value)+2; \
   if ((size_t) (q-interpret_text+length+1) >= extent) \
@@ -3535,11 +3541,9 @@ DisableMSCWarning(4127) \
       q=interpret_text+strlen(interpret_text); \
      } \
    q+=FormatLocaleString(q,extent,"%s=%s\n",(key),(value)); \
-} \
-RestoreMSCWarning
+}
 
 #define AppendString2Text(string) \
-DisableMSCWarning(4127) \
 { \
   size_t length=strlen((string)); \
   if ((size_t) (q-interpret_text+length+1) >= extent) \
@@ -3559,8 +3563,7 @@ DisableMSCWarning(4127) \
     } \
   (void) CopyMagickString(q,(string),extent); \
   q+=length; \
-} \
-RestoreMSCWarning
+}
 
   char
     *interpret_text;
@@ -3889,11 +3892,8 @@ RestoreMSCWarning
           if (status != MagickFalse)
             {
               char
-                hex[MagickPathExtent],
-                name[MagickPathExtent];
+                hex[MagickPathExtent];
 
-              (void) QueryColorname(property_image,&pixel,SVGCompliance,name,
-                exception);
               GetColorTuple(&pixel,MagickTrue,hex);
               AppendString2Text(hex+1);
             }
@@ -3942,8 +3942,15 @@ RestoreMSCWarning
               char
                 name[MagickPathExtent];
 
-              (void) QueryColorname(property_image,&pixel,SVGCompliance,name,
-                exception);
+              GetColorTuple(&pixel,MagickFalse,name);
+              string=GetImageArtifact(property_image,"pixel:compliance");
+              if (string != (char *) NULL)
+                {
+                  ComplianceType compliance=(ComplianceType) ParseCommandOption(
+                    MagickComplianceOptions,MagickFalse,string);
+                  (void) QueryColorname(property_image,&pixel,compliance,name,
+                    exception);
+                }
               AppendString2Text(name);
             }
           continue;
@@ -4269,7 +4276,7 @@ MagickExport MagickBooleanType SetImageProperty(Image *image,
       if (LocaleCompare("background",property) == 0)
         {
           (void) QueryColorCompliance(value,AllCompliance,
-               &image->background_color,exception);
+            &image->background_color,exception);
           /* check for FUTURE: value exception?? */
           /* also add user input to splay tree */
         }
@@ -4566,7 +4573,11 @@ MagickExport MagickBooleanType SetImageProperty(Image *image,
           (void) SetImageInfo(image_info,1,exception);
           profile=FileToStringInfo(image_info->filename,~0UL,exception);
           if (profile != (StringInfo *) NULL)
-            status=SetImageProfile(image,image_info->magick,profile,exception);
+            {
+              status=SetImageProfile(image,image_info->magick,profile,
+                exception);
+              profile=DestroyStringInfo(profile);
+            }
           image_info=DestroyImageInfo(image_info);
           return(MagickTrue);
         }

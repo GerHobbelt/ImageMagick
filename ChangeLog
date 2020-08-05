@@ -1,3 +1,127 @@
+2020-07-31  7.0.10-25  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-25 GIT revision 17497:0e12ff687:20200731
+
+2020-07-25  7.0.10-25  <quetzlzacatenango@image...>
+  * Remove UseCIEColor setting from PDF code as its use is not recommended.
+  * Update to the latest documentation.
+
+2020-07-18  7.0.10-24  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-24 GIT revision 17483:d11a2ec03:20200718
+
+2020-07-18  7.0.10-24 Dirk Lemstra <dirk@lem.....org>
+  * To preserve compression of input image with the tiff encoder use:
+    -define tiff:preserve-compression=true.
+
+2020-07-05  7.0.10-24  <quetzlzacatenango@image...>
+  * Add support for the -white-balance command-line option.
+  * Discover hidden files when globbing (e.g. *.jpg) (reference
+    https://github.com/ImageMagick/ImageMagick/discussions/2239).
+  * New inverse-log evaluate operator.
+
+2020-07-04  7.0.10-23  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-23 GIT revision 17437:894231bc3:20200704 
+
+2020-06-28  7.0.10-23  <quetzlzacatenango@image...>
+  * Ensure that float is valid in ClampToQuantum() (reference
+    https://github.com/ImageMagick/ImageMagick/pull/2219).
+  * New pseudo-image format, ashlar, e.g.
+    convert *.jpg -resize 320x320 ashlar:canvas.png).
+
+2020-06-27  7.0.10-22  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-22 GIT revision 17415:5318a3e0a:20200627
+
+2020-06-24  7.0.10-22  <quetzlzacatenango@image...>
+  * Fix wrapping of caption (reference
+    https://github.com/ImageMagick/ImageMagick/issues/2178).
+  * Sanity check of affine matrix when drawing.
+
+2020-06-22  7.0.10-21  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-21 GIT revision 17395:af81c28c9:20200622
+
+2020-06-21  7.0.10-21  <quetzlzacatenango@image...>
+  * New image property, %N, only report the # of frames in an image sequence,
+    just once rather than on a per frame basis
+  * Problems converting CMYK to RGB regression (reference
+    https://github.com/ImageMagick/ImageMagick6/issues/83)
+
+2020-06-21  7.0.10-21 Dirk Lemstra <dirk@lem.....org>
+  * Added support for 32 bit zip with prediction format to the PSD decoder
+    (reference https://github.com/ImageMagick/ImageMagick/issues/455).
+
+2020-06-20  7.0.10-20  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-20 GIT revision 17372:d91c43f3b:20200620
+
+2020-06-14  7.0.10-20  <quetzlzacatenango@image...>
+  * Fix out-of-bounds vulnerability when reading sixel images (reference
+    https://github.com/ImageMagick/ImageMagick/issues/2143).
+  * Fix incorrect parsing of font family list (reference
+    https://github.com/ImageMagick/ImageMagick/issues/2153).
+
+2020-06-12  7.0.10-19 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-19, GIT revision 17343:e552d22:20200612
+
+2020-06-09  7.0.10-19 Cristy  <quetzlzacatenango@image...>
+  * Improve checking for write failures (reference
+    https://github.com/ImageMagick/ImageMagick/pull/2081).
+
+2020-06-08  7.0.10-18 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-18, GIT revision 17333:d071c2032:20200608
+
+2020-06-08  7.0.10-18 Cristy  <quetzlzacatenango@image...>
+  * Colorspace change will remove ICC profile (reference
+    https://github.com/ImageMagick/ImageMagick6/issues/82).
+
+2020-06-07  7.0.10-17 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-17, GIT revision 17311:8b5350f:20200607
+
+2020-06-03  7.0.10-17 Cristy  <quetzlzacatenango@image...>
+  * Free up memory after a ICC profile is removed.
+
+2020-05-31  7.0.10-16 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-16, GIT revision 17294:5be1abe:20200531
+
+2020-05-30  7.0.10-16 Cristy  <quetzlzacatenango@image...>
+  * Fix PDF XREF directory for image sequences with and without ICC profiles.
+
+2020-05-29  7.0.10-15 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-15, GIT revision 17282:9294896:20200529
+
+2020-05-24  7.0.10-15 Cristy  <quetzlzacatenango@image...>
+  * Clipping was not returning expected results (reference
+    https://github.com/ImageMagick/ImageMagick/discussions/2061).
+  * Don't write a ICC profile to PDF if the image is gray (reference
+    https://github.com/ImageMagick/ImageMagick/issues/2070).
+
+2020-05-22  7.0.10-14 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-14, GIT revision 17268:e9c804c93:20200522
+
+2020-05-22  7.0.10-14 Cristy  <quetzlzacatenango@image...>
+  * Errant warning when reading a profile file (reference
+    https://github.com/ImageMagick/ImageMagick/issues/2030).
+   * Fix one off error on PDF object for images with ICC profile.
+
+2020-05-17  7.0.10-13 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-13, GIT revision 17257:e3b442c:20200517.
+
+2020-05-17  7.0.10-13 Cristy  <quetzlzacatenango@image...>
+  * Remove errant debugging statement in SVG coder.
+
+2020-05-15  7.0.10-12 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-12, GIT revision 17242:e14b3fb:20200515.
+
+2020-05-12  7.0.10-12 Cristy  <quetzlzacatenango@image...>
+  * Black artefacts during quantization (reference
+    https://github.com/ImageMagick/ImageMagick/discussions/2007#discussioncomment-13546).
+
+2020-05-08  7.0.10-11 Cristy  <quetzlzacatenango@image...>
+  * Release ImageMagick version 7.0.10-11, GIT revision 17230:088df0e:20200508.
+
+2020-04-28  7.0.10-11 Cristy  <quetzlzacatenango@image...>
+  * Disable "random" OpenCL kernel.  Previously the work load was distributed
+    but each started with the same random seed.
+  * Finished implementation of -distort rigid-affine.
+  * Enable threaded PNG coder.
+
 2020-04-27  7.0.10-10 Cristy  <quetzlzacatenango@image...>
   * Release ImageMagick version 7.0.10-10, GIT revision 17205:9b0340e:20200427
 
