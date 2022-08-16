@@ -12,6 +12,9 @@ permissions:
 name: app image
 jobs:
   build:
+    outputs:
+      digests-gcc: ${{ steps.hash-gcc.outputs.hashes }}
+      digests-clang: ${{ steps.hash-clang.outputs.hashes }}
     name: 'Create AppImage'
     runs-on: ubuntu-latest
     container:
@@ -95,3 +98,43 @@ jobs:
       with:
         name: AppImage-${{ matrix.compiler }}
         path: artifacts
+
+    - name: Generate SLSA subjects - clang
+      if: matrix.compiler == 'clang'
+      id: hash-clang
+      run: cd artifacts && echo "::set-output name=hashes::$(sha256sum * | base64 -w0)"
+
+    - name: Generate SLSA subjects - gcc
+      if: matrix.compiler == 'gcc'
+      id: hash-gcc
+      run: cd artifacts && echo "::set-output name=hashes::$(sha256sum * | base64 -w0)"
+  
+  release-disgests:
+    if: contains(github.ref, 'tags')
+    needs: [build]
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge results
+        id: hash
+        env:
+          CLANG_DIGESTS: "${{ needs.build.outputs.digests-clang }}"
+          CLANG_DIGESTS: "${{ needs.build.outputs.digests-gcc }}"
+        run: |
+          set -euo pipefail
+          echo "$CLANG_DIGESTS" | base64 -d > checksums.txt
+          echo "$CLANG_DIGESTS" | base64 -d >> checksums.txt
+          echo "::set-output name=digests::$(cat checksums.txt | base64 -w0)"
+  
+  provenance:
+    if: contains(github.ref, 'tags')
+    needs: [release-disgests]
+    permissions:
+      actions: read # To read the workflow path.
+      id-token: write # To sign the provenance.
+      contents: write # To add assets to a release.
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.2.0
+    with:
+      base64-subjects: "${{ needs.release-disgests.outputs.hashes }}"
+      upload-assets: true # upload to a new release
