@@ -120,11 +120,11 @@ jobs:
         id: hash
         env:
           CLANG_DIGESTS: "${{ needs.build.outputs.digests-clang }}"
-          CLANG_DIGESTS: "${{ needs.build.outputs.digests-gcc }}"
+          GCC_DIGESTS: "${{ needs.build.outputs.digests-gcc }}"
         run: |
           set -euo pipefail
           echo "$CLANG_DIGESTS" | base64 -d > checksums.txt
-          echo "$CLANG_DIGESTS" | base64 -d >> checksums.txt
+          echo "$GCC_DIGESTS" | base64 -d >> checksums.txt
           echo "::set-output name=digests::$(cat checksums.txt | base64 -w0)"
   
   provenance:
