@@ -468,16 +468,15 @@ AC_SUBST([THREAD_LIBS])
 # Enable support for OpenMP
 if test "$have_threads" != 'yes'; then
   ac_cv_prog_c_openmp=unsupported
-fi
+fi  
 AC_OPENMP([C])
 CFLAGS="$OPENMP_CFLAGS $CFLAGS"
 MAGICK_PCFLAGS="$MAGICK_PCFLAGS $OPENMP_CFLAGS"
 AC_SUBST([OPENMP_CFLAGS])
-AC_CHECK_DECL([_OPENMP],[OPENMP_ENABLED='yes'],[OPENMP_ENABLED='yes'],[])
-if test "$enable_openmp" != no; then
-  if test "$ac_cv_prog_c_openmp" != 'unsupported'; then
+AC_CHECK_DECL([_OPENMP],[OPENMP_ENABLED='yes'],[OPENMP_ENABLED='no'],[])
+if test "${OPENMP_ENABLED}" = 'yes' && \
+   test "$ac_cv_prog_c_openmp" != 'unsupported'; then
     MAGICK_FEATURES="OpenMP $MAGICK_FEATURES"
-  fi
 fi
 
 # Enable support for OpenCL
@@ -593,7 +592,7 @@ if test "$with_modules" != 'no' ; then
 fi
 if test "$build_modules" != 'no' ; then
     AC_DEFINE([BUILD_MODULES],[1],[Define if coders and filters are to be built as modules.])
-    MAGICK_FEATURES="$MAGICK_FEATURES Modules"
+    MAGICK_FEATURES="Modules $MAGICK_FEATURES"
 fi
 AM_CONDITIONAL([WITH_MODULES],[test "$build_modules" != 'no'])
 
@@ -631,18 +630,6 @@ else
     DISTCHECK_CONFIG_FLAGS="${DISTCHECK_CONFIG_FLAGS} --disable-installed "
 fi
 
-# Permit enciphering and deciphering image pixels.
-AC_ARG_ENABLE([cipher],
-    [AS_HELP_STRING([--disable-cipher],
-                    [disable enciphering and deciphering image pixels])],
-    [enable_cipher=$enableval],
-    [enable_cipher='yes'])
-
-if test "$enable_cipher" = 'yes'; then
-    AC_DEFINE([CIPHER_SUPPORT],[1],[permit enciphering and deciphering image pixels])
-    MAGICK_FEATURES="Cipher $MAGICK_FEATURES"
-fi
-
 # Build a zero-configuration version of ImageMagick.
 AC_ARG_ENABLE([zero-configuration],
     [AS_HELP_STRING([--enable-zero-configuration],
@@ -677,31 +664,6 @@ AC_SUBST([MAGICK_HDRI])dnl
 MAGICK_PCFLAGS="$MAGICK_PCFLAGS -DMAGICKCORE_HDRI_ENABLE=$magick_hdri_enable"
 CFLAGS="$CFLAGS -DMAGICKCORE_HDRI_ENABLE=$magick_hdri_enable"
 CPPFLAGS="$CPPFLAGS -DMAGICKCORE_HDRI_ENABLE=$magick_hdri_enable"
-
-#
-# Extend channel masks from 32 to 64-bits.
-#
-AC_ARG_ENABLE([64bit_channel_masks],
-    [AS_HELP_STRING([--enable-64bit-channel-masks],
-                    [enable 64-bit channel masks])],
-    [enable_64bit_channel_masks=$enableval],
-    [enable_64bit_channel_masks='no'])
-
-MAGICK_64BIT_CHANNEL_MASK=""
-if test "$enable_64bit_channel_masks" = 'yes'; then
-    MAGICK_64BIT_CHANNEL_MASK="Channel-masks(64-bit)"
-    magick_channel_mask_depth='64';
-    MAGICK_FEATURES="Channel-masks(64-bit) $MAGICK_FEATURES"
-else
-    magick_channel_mask_depth='32'
-fi
-AC_DEFINE_UNQUOTED([CHANNEL_MASK_DEPTH],[$magick_channel_mask_depth],[Channel mask depth])
-CHANNEL_MASK_DEPTH=$magick_channel_mask_depth
-AC_SUBST([CHANNEL_MASK_DEPTH])dnl
-AC_SUBST([MAGICK_64BIT_CHANNEL_MASK])dnl
-MAGICK_PCFLAGS="$MAGICK_PCFLAGS -DMAGICKCORE_CHANNEL_MASK_DEPTH=$magick_channel_mask_depth"
-CFLAGS="$CFLAGS -DMAGICKCORE_CHANNEL_MASK_DEPTH=$magick_channel_mask_depth"
-CPPFLAGS="$CPPFLAGS -DMAGICKCORE_CHANNEL_MASK_DEPTH=$magick_channel_mask_depth"
 
 #
 # Support the distributed pixel cache.
@@ -1304,39 +1266,51 @@ AC_DEFINE_UNQUOTED([X11_CONFIGURE_PATH],["$X11ConfigurePath"],[Location of X11 c
 # Find OpenMP library
 #
 GOMP_LIBS=''
-if test "${OPENMP_ENABLED}" == 'yes'; then
+if test "${OPENMP_ENABLED}" = 'yes'; then
+  AC_CHECK_HEADER([omp.h], [], [AC_MSG_RESULT([OpenMP header file not found])])
   if test "${GCC}" = "yes"; then
     # Open64 (passes for GCC but uses different OpenMP implementation)
     if test "x$GOMP_LIBS" = x ; then
       if $CC --version 2>&1 | grep Open64 > /dev/null ; then
-        AC_CHECK_LIB([openmp],[omp_get_num_procs],[GOMP_LIBS="-lopenmp"],[],[])
+        AC_COMPILE_IFELSE([ AC_LANG_PROGRAM([#include <omp.h>], [
+          omp_set_num_threads(1);])],[GOMP_LIBS="-lopenmp"],[])
       fi
     fi
     # Clang (passes for GCC but uses different OpenMP implementation)
-    if test "x$LIB_OMP" = x ; then
+    if test "x$GOMP_LIBS" = x ; then
       if $CC --version 2>&1 | grep clang > /dev/null ; then
-        AC_CHECK_LIB([omp],[GOMP_parallel_start],[LIB_OMP="-lomp"],[],[])
+        AC_COMPILE_IFELSE([ AC_LANG_PROGRAM([#include <omp.h>], [
+          omp_set_num_threads(1);])],[GOMP_LIBS="-lomp"],[])
       fi
     fi
     # GCC
     if test "x$GOMP_LIBS" = x ; then
-      AC_CHECK_LIB([gomp],[GOMP_parallel_start],[GOMP_LIBS="-lgomp"],[],[])
+      AC_COMPILE_IFELSE([ AC_LANG_PROGRAM([#include <omp.h>], [
+        omp_set_num_threads(1);])],[GOMP_LIBS="-lgomp"],[])
     fi
   else
     # Sun CC
     if test "x$GOMP_LIBS" = x ; then
-      AC_CHECK_LIB([mtsk],[sunw_mp_register_warn],[GOMP_LIBS="-lmtsk"],[],[])
+      AC_COMPILE_IFELSE([ AC_LANG_PROGRAM([#include <omp.h>], [
+        omp_set_num_threads(1);])],[GOMP_LIBS="-lmtsk"],[])
     fi
     # AIX xlc
     if test "x$GOMP_LIBS" = x ; then
-    AC_CHECK_LIB([xlsmp],[_xlsmpFlush],[GOMP_LIBS="-lxlsmp"],[],[])
+      AC_COMPILE_IFELSE([ AC_LANG_PROGRAM([#include <omp.h>], [
+        omp_set_num_threads(1);])],[GOMP_LIBS="-lxmlsmp"],[])
     fi
     # SGI IRIX 6.5 MIPSpro C/C++
     if test "x$GOMP_LIBS" = x ; then
-    AC_CHECK_LIB([mp],[mp_destroy],[GOMP_LIBS="-lmp"],[],[])
+      AC_COMPILE_IFELSE([ AC_LANG_PROGRAM([#include <omp.h>], [
+        omp_set_num_threads(1);])],[GOMP_LIBS="-lmp"],[])
     fi
   fi
-  LIBS="$GOMP_LIBS $LIBS"
+  AC_MSG_CHECKING([for OpenMP library ])
+  if test "x$GOMP_LIBS" = x ; then
+    AC_MSG_RESULT([not found!])
+  else
+    AC_MSG_RESULT([${GOMP_LIBS}])
+  fi
 fi
 AC_SUBST([GOMP_LIBS])
 
@@ -3268,9 +3242,9 @@ GVCDecodeDelegateDefault='dot'
 DVIDecodeDelegateDefault='dvips'
 EditorDelegateDefault='xterm'
 ConvertDelegateDefault=`echo magick | sed ${configure_transform_name}`
-DisplayDelegateDefault=`echo magick | sed ${configure_transform_name}`
+DisplayDelegateDefault=`echo magick display | sed ${configure_transform_name}`
 Fig2devDelegateDefault='fig2dev'
-MogrifyDelegateDefault=`echo magick | sed ${configure_transform_name}`
+MogrifyDelegateDefault=`echo magick mogrify | sed ${configure_transform_name}`
 HPGLDecodeDelegateDefault='hp2xx'
 HTMLDecodeDelegateDefault='html2ps'
 ILBMDecodeDelegateDefault='ilbmtoppm'
@@ -3495,27 +3469,81 @@ AC_SUBST([windows_font_dir])
 
 AC_SUBST([type_include_files])
 
-#
-# Need C++ for { 64-bit channels masks, FPX, JXL}.
-#
-if test "$enable_64bit_channel_masks" = 'yes' || test "$have_jxl" != 'no' || test "$with_fpx" != 'no'; then
-  AC_MSG_CHECKING([whether the compiler supports -x option])
-  AC_COMPILE_IFELSE([
-    AC_LANG_PROGRAM([
-      #include <stdio.h>
-    ],
-    [
-      int main() {
-        return 0;
-      }
-    ])
-  ], [
-    AC_MSG_RESULT([yes])
-    CFLAGS="$CFLAGS -x c++"
-  ], [
-    AC_MSG_RESULT([no])
-  ])
+# Permit enciphering and deciphering image pixels.
+AC_ARG_ENABLE([cipher],
+    [AS_HELP_STRING([--disable-cipher],
+                    [disable enciphering and deciphering image pixels])],
+    [enable_cipher=$enableval],
+    [enable_cipher='yes'])
+
+if test "$enable_cipher" = 'yes'; then
+    AC_DEFINE([CIPHER_SUPPORT],[1],[permit enciphering and deciphering image pixels])
+    MAGICK_FEATURES="Cipher $MAGICK_FEATURES"
 fi
+
+#
+# Check for extended channel masks.
+#
+AC_ARG_ENABLE([64bit_channel_masks],
+    [AS_HELP_STRING([--enable-64bit-channel-masks],
+                    [enable 64-bit channel masks])],
+    [enable_64bit_channel_masks=$enableval],
+    [enable_64bit_channel_masks='no'])
+
+AC_ARG_ENABLE([force_cpp],
+    [AS_HELP_STRING([--enable-force-cpp],
+                    [treat the input files as C++ code])],
+    [enable_force_cpp=$enableval],
+    [enable_force_cpp='no'])
+
+magick_channel_mask_depth='32';
+if test "$enable_64bit_channel_masks" = 'yes'; then
+    if test "$enable_force_cpp" = 'yes'; then
+        AC_MSG_CHECKING([whether the compiler supports -x c++ option])
+        old_CFLAGS="$CFLAGS"
+        CFLAGS="$CFLAGS -x c++"
+        AC_COMPILE_IFELSE([
+          AC_LANG_PROGRAM([
+            enum Days : int { Monday = 1 };
+          ],
+          [
+          ])
+        ], [
+          AC_MSG_RESULT([yes])
+          magick_channel_mask_depth='64';
+        ], [
+          AC_MSG_RESULT([no])
+        ])
+        if test "$magick_channel_mask_depth" != '64'; then
+          CFLAGS="$old_CFLAGS"
+        fi
+    else
+        AC_MSG_CHECKING([whether the compiler supports enum type modifiers])
+        AC_COMPILE_IFELSE([
+          AC_LANG_PROGRAM([
+            enum Days : int { Monday = 1 };
+          ],
+          [
+          ])
+        ], [
+          AC_MSG_RESULT([yes])
+          magick_channel_mask_depth='64';
+        ], [
+          AC_MSG_RESULT([no])
+        ])
+    fi
+fi
+if test "$magick_channel_mask_depth" = '64'; then
+    MAGICK_FEATURES="Channel-masks(64-bit) $MAGICK_FEATURES"
+else
+    MAGICK_FEATURES="Channel-masks(32-bit) $MAGICK_FEATURES"
+fi
+AC_DEFINE_UNQUOTED([CHANNEL_MASK_DEPTH],[$magick_channel_mask_depth],[Channel mask depth])
+CHANNEL_MASK_DEPTH=$magick_channel_mask_depth
+AC_SUBST([CHANNEL_MASK_DEPTH])dnl
+MAGICK_PCFLAGS="$MAGICK_PCFLAGS -DMAGICKCORE_CHANNEL_MASK_DEPTH=$magick_channel_mask_depth"
+CFLAGS="$CFLAGS -DMAGICKCORE_CHANNEL_MASK_DEPTH=$magick_channel_mask_depth"
+CPPFLAGS="$CPPFLAGS -DMAGICKCORE_CHANNEL_MASK_DEPTH=$magick_channel_mask_depth"
 
 #
 # Handle case where user doesn't want frozen paths
@@ -4061,12 +4089,21 @@ AC_SUBST([X_CFLAGS])
 #AC_SUBST([X_LIBS])
 #AC_SUBST([X_EXTRA_LIBS])
 
+CC=`echo $CC | sed -e 's/  */ /g'`
+CFLAGS=`echo $CFLAGS | sed -e 's/  */ /g'`
+CPPFLAGS=`echo $CPPFLAGS | sed -e 's/  */ /g'`
+CXXFLAGS=`echo $CXXFLAGS | sed -e 's/  */ /g'`
+LDFLAGS=`echo $LDFLAGS | sed -e 's/  */ /g'`
+LIBS=`echo $LIBS | sed -e 's/  */ /g'`
+
 MAGICK_CFLAGS=$CFLAGS
 MAGICK_CXXFLAGS="$CXXFLAGS"
 MAGICK_CPPFLAGS=`echo $MAGICK_CPPFLAGS | sed -e 's/  */ /g'`
 MAGICK_PCFLAGS=`echo $MAGICK_PCFLAGS | sed -e 's/  */ /g'`
 MAGICK_LDFLAGS="-L$LIB_DIR $LDFLAGS"
 MAGICK_LIBS="$MAGICK_DEP_LIBS $MAGICK_EXTRA_DEP_LIBS"
+MAGICK_DEP_LIBS=`echo $MAGICK_DEP_LIBS | sed -e 's/  */ /g'`
+MAGICK_EXTRA_DEP_LIBS=`echo $MAGICK_EXTRA_DEP_LIBS | sed -e 's/  */ /g'`
 
 AC_SUBST([MAGICK_CFLAGS])
 AC_SUBST([MAGICK_CXXFLAGS])
@@ -4179,7 +4216,8 @@ Static libraries    --enable-static=$enable_static			$libtool_build_static_libs
 Build utilities     --with-utilities=$with_utilities		$with_utilities
 Module support      --with-modules=$build_modules			$build_modules
 GNU ld              --with-gnu-ld=$with_gnu_ld			$lt_cv_prog_gnu_ld
-Security policy     --with-security-policy=$security_policy	$security_policy
+OpenMP              --enable-openmp=$enable_openmp			${OPENMP_ENABLED}
+Security policy     --with-security-policy=$security_policy	        $security_policy
 Quantum depth       --with-quantum-depth=$with_quantum_depth		$with_quantum_depth
 Channel mask depth  --enable-64bit-channel-masks=$enable_64bit_channel_masks	$magick_channel_mask_depth
 High Dynamic Range Imagery

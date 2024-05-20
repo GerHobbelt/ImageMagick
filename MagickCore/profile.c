@@ -2496,8 +2496,8 @@ static MagickBooleanType GetXmpOffsets(const StringInfo *profile,
   return(MagickTrue);
 }
 
-static void GetXmpNumeratorAndDenominator(double value,size_t *numerator,
-  size_t *denominator)
+static void GetXmpNumeratorAndDenominator(double value,
+  unsigned long *numerator,unsigned long *denominator)
 {
   double
     df;
@@ -2515,7 +2515,7 @@ static void GetXmpNumeratorAndDenominator(double value,size_t *numerator,
     else
       {
         (*denominator)++;
-        *numerator=(size_t) (value*(*denominator));
+        *numerator=(unsigned long) (value*(*denominator));
       }
     df=*numerator/(double)*denominator;
   }
@@ -2527,17 +2527,19 @@ static void SyncXmpProfile(const Image *image,StringInfo *profile)
     value[MagickPathExtent];
 
   size_t
-    denominator,
     end,
-    numerator,
     start;
+
+  unsigned long
+    denominator,
+    numerator;
 
   *value='\0';
   if (GetXmpOffsets(profile,"tiff:XResolution",&start,&end) != MagickFalse)
     {
       GetXmpNumeratorAndDenominator(image->resolution.x,&numerator,
         &denominator);
-      (void) FormatLocaleString(value,MagickPathExtent,"%zu/%zu",numerator,
+      (void) FormatLocaleString(value,MagickPathExtent,"%lu/%lu",numerator,
         denominator);
       ReplaceXmpValue(profile,start,end,value);
     }
@@ -2548,8 +2550,8 @@ static void SyncXmpProfile(const Image *image,StringInfo *profile)
         {
           GetXmpNumeratorAndDenominator(image->resolution.y,&numerator,
             &denominator);
-          (void) FormatLocaleString(value,MagickPathExtent,"%zu/%zu",numerator,
-            denominator);
+          (void) FormatLocaleString(value,MagickPathExtent,"%lu/%lu",
+            numerator,denominator);
         }
       ReplaceXmpValue(profile,start,end,value);
     }
