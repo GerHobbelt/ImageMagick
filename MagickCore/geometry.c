@@ -487,6 +487,8 @@ MagickExport char *GetPageGeometry(const char *page_geometry)
     int
       status;
 
+    if (Pagesizes[i].extent == 0)
+      break;  /* sentinel */
     status=LocaleNCompare(Pagesizes[i].name,page_geometry,Pagesizes[i].extent);
     if (status == 0)
       {
@@ -562,7 +564,7 @@ MagickExport void GravityAdjustGeometry(const size_t width,
     case SouthGravity:
     case CenterGravity:
     {
-      region->x+=CastDoubleToLong(width/2.0-region->width/2.0);
+      region->x=CastDoubleToLong(width/2.0-region->width/2.0+region->x);
       break;
     }
     case ForgetGravity:
@@ -585,7 +587,7 @@ MagickExport void GravityAdjustGeometry(const size_t width,
     case WestGravity:
     case CenterGravity:
     {
-      region->y+=CastDoubleToLong(height/2.0-region->height/2.0);
+      region->y=CastDoubleToLong(height/2.0-region->height/2.0+region->y);
       break;
     }
     case ForgetGravity:
