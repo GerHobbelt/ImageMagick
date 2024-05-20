@@ -96,7 +96,7 @@
 #include "jpeglib.h"
 #include "jerror.h"
 #endif
-
+
 /*
   Define declarations.
 */
