@@ -111,7 +111,7 @@ MagickExport Image *AutoOrientImage(const Image *image,
   assert(exception != (ExceptionInfo *) NULL);
   assert(exception->signature == MagickCoreSignature);
   orient_image=(Image *) NULL;
-  switch(orientation)
+  switch (orientation)
   {
     case UndefinedOrientation:
     case TopLeftOrientation:

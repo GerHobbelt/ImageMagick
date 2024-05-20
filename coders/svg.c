@@ -303,7 +303,7 @@ static Image *RenderSVGImage(const ImageInfo *image_info,Image *image,
     MagickFalse ? 0 : 1;
   (void) AcquireUniqueFilename(unique);
   (void) FormatLocaleString(output_filename,MagickPathExtent,"%s.png",unique);
-  (void) AcquireUniqueFilename(unique);
+  (void) RelinquishUniqueFileResource(unique);
   density=AcquireString("");
   (void) FormatLocaleString(density,MagickPathExtent,"%.20g",
     ceil(sqrt(image->resolution.x*image->resolution.y)-0.5));
@@ -316,11 +316,10 @@ static Image *RenderSVGImage(const ImageInfo *image_info,Image *image,
     image->background_color.alpha);
   (void) FormatLocaleString(command,MagickPathExtent,
     GetDelegateCommands(delegate_info),input_filename,output_filename,density,
-    background,opacity,unique);
+    background,opacity);
   density=DestroyString(density);
   status=ExternalDelegateCommand(MagickFalse,image_info->verbose,command,
     (char *) NULL,exception);
-  (void) RelinquishUniqueFileResource(unique);
   (void) RelinquishUniqueFileResource(input_filename);
   if ((status == 0) && (stat(output_filename,&attributes) == 0) &&
       (attributes.st_size > 0))
@@ -1900,7 +1899,7 @@ static void SVGStartElement(void *context,const xmlChar *name,
           (void) FormatLocaleFile(svg_info->file,"fill-opacity 1\n");
           (void) FormatLocaleFile(svg_info->file,"stroke \"none\"\n");
           (void) FormatLocaleFile(svg_info->file,"stroke-width 1\n");
-          (void) FormatLocaleFile(svg_info->file,"stroke-opacity 1\n");
+          (void) FormatLocaleFile(svg_info->file,"stroke-opacity 0\n");
           (void) FormatLocaleFile(svg_info->file,"fill-rule nonzero\n");
           break;
         }

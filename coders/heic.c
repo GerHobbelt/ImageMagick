@@ -244,7 +244,7 @@ static MagickBooleanType ReadHEICExifProfile(Image *image,
       */
       length=GetStringInfoLength(exif_profile);
       datum=GetStringInfoDatum(exif_profile);
-      if ((length > 2) && 
+      if ((length > 2) &&
           ((memcmp(datum,"\xff\xd8",2) == 0) ||
            (memcmp(datum,"\xff\xe1",2) == 0)) &&
            (memcmp(datum+length-2,"\xff\xd9",2) == 0))
@@ -376,6 +376,33 @@ static MagickBooleanType ReadHEICImageHandle(const ImageInfo *image_info,
   if (status == MagickFalse)
     return(MagickFalse);
   decode_options=heif_decoding_options_alloc();
+#if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,16,0)
+  {
+    const char
+      *option;
+
+    option=GetImageOption(image_info,"heic:chroma-upsampling");
+    if (option != (char *) NULL)
+      {
+        if (LocaleCompare(option,"nearest-neighbor") == 0)
+          {
+            decode_options->color_conversion_options.
+              only_use_preferred_chroma_algorithm=1;
+            decode_options->color_conversion_options.
+              preferred_chroma_upsampling_algorithm=
+              heif_chroma_upsampling_nearest_neighbor;
+          }
+        else if (LocaleCompare(option,"bilinear") == 0)
+          {
+            decode_options->color_conversion_options.
+              only_use_preferred_chroma_algorithm=1;
+            decode_options->color_conversion_options.
+              preferred_chroma_upsampling_algorithm=
+              heif_chroma_upsampling_bilinear;
+          }
+      }
+    }
+#endif
   if (preserve_orientation != MagickFalse)
     decode_options->ignore_transformations=1;
   chroma=heif_chroma_interleaved_RGB;
@@ -763,7 +790,7 @@ ModuleExport size_t RegisterHEICImage(void)
   entry->flags|=CoderDecoderSeekableStreamFlag;
   entry->flags^=CoderBlobSupportFlag;
   (void) RegisterMagickInfo(entry);
-#if LIBHEIF_NUMERIC_VERSION > HEIC_COMPUTE_NUMERIC_VERSION(1,6,2) 
+#if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,7,0)
   entry=AcquireMagickInfo("HEIC","AVIF","AV1 Image File Format");
 #if defined(MAGICKCORE_HEIC_DELEGATE)
   if (heif_have_decoder_for_format(heif_compression_AV1))
@@ -804,7 +831,7 @@ ModuleExport size_t RegisterHEICImage(void)
 */
 ModuleExport void UnregisterHEICImage(void)
 {
-#if LIBHEIF_NUMERIC_VERSION > HEIC_COMPUTE_NUMERIC_VERSION(1,6,2)
+#if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,7,0)
   (void) UnregisterMagickInfo("AVIF");
 #endif
   (void) UnregisterMagickInfo("HEIC");
@@ -1176,7 +1203,7 @@ static MagickBooleanType WriteHEICImage(const ImageInfo *image_info,
   Image *image,ExceptionInfo *exception)
 {
   MagickBooleanType
-#if LIBHEIF_NUMERIC_VERSION > HEIC_COMPUTE_NUMERIC_VERSION(1,6,2)
+#if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,7,0)
     encode_avif,
 #endif
     status;
@@ -1210,12 +1237,15 @@ static MagickBooleanType WriteHEICImage(const ImageInfo *image_info,
     return(status);
   scene=0;
   heif_context=heif_context_alloc();
-#if LIBHEIF_NUMERIC_VERSION > HEIC_COMPUTE_NUMERIC_VERSION(1,6,2)
+#if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,7,0)
   encode_avif=(LocaleCompare(image_info->magick,"AVIF") == 0) ? MagickTrue :
     MagickFalse;
 #endif
   do
   {
+    const char
+      *option;
+
     const StringInfo
       *profile;
 
@@ -1234,7 +1264,7 @@ static MagickBooleanType WriteHEICImage(const ImageInfo *image_info,
     /*
       Get encoder for the specified format.
     */
-#if LIBHEIF_NUMERIC_VERSION > HEIC_COMPUTE_NUMERIC_VERSION(1,6,2)
+#if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,7,0)
     if (encode_avif != MagickFalse)
       error=heif_context_get_encoder_for_format(heif_context,
         heif_compression_AV1,&heif_encoder);
@@ -1309,31 +1339,53 @@ static MagickBooleanType WriteHEICImage(const ImageInfo *image_info,
     status=IsHEIFSuccess(image,&error,exception);
     if (status == MagickFalse)
       break;
-#if LIBHEIF_NUMERIC_VERSION > HEIC_COMPUTE_NUMERIC_VERSION(1,6,2)
-    if (encode_avif != MagickFalse)
+    option=GetImageOption(image_info,"heic:speed");
+    if (option != (char *) NULL)
       {
-        const char
-          *option;
-
-        option=GetImageOption(image_info,"heic:speed");
-        if (option != (char *) NULL)
+        error=heif_encoder_set_parameter(heif_encoder,"speed",option);
+        status=IsHEIFSuccess(image,&error,exception);
+        if (status == MagickFalse)
+          break;
+      }
+    option=GetImageOption(image_info,"heic:chroma");
+    if (option != (char *) NULL)
+      {
+        error=heif_encoder_set_parameter(heif_encoder,"chroma",option);
+        status=IsHEIFSuccess(image,&error,exception);
+        if (status == MagickFalse)
+          break;
+      }
+    options=heif_encoding_options_alloc();
+#if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,16,0)
+    option=GetImageOption(image_info,"heic:chroma-downsampling");
+    if (option != (char *) NULL)
+      {
+        if (LocaleCompare(option,"nearest-neighbor") == 0)
           {
-            error=heif_encoder_set_parameter(heif_encoder,"speed",option);
-            status=IsHEIFSuccess(image,&error,exception);
-            if (status == MagickFalse)
-              break;
+            options->color_conversion_options.
+              only_use_preferred_chroma_algorithm=1;
+            options->color_conversion_options.
+              preferred_chroma_downsampling_algorithm=
+              heif_chroma_downsampling_nearest_neighbor;
           }
-        option=GetImageOption(image_info,"heic:chroma");
-        if (option != (char *) NULL)
+        else if (LocaleCompare(option,"average") == 0)
           {
-            error=heif_encoder_set_parameter(heif_encoder,"chroma",option);
-            status=IsHEIFSuccess(image,&error,exception);
-            if (status == MagickFalse)
-              break;
+            options->color_conversion_options.
+              only_use_preferred_chroma_algorithm=1;
+            options->color_conversion_options.
+              preferred_chroma_downsampling_algorithm=
+              heif_chroma_downsampling_average;
+          }
+        else if (LocaleCompare(option,"sharp-yuv") == 0)
+          {
+            options->color_conversion_options.
+              only_use_preferred_chroma_algorithm=1;
+            options->color_conversion_options.
+              preferred_chroma_downsampling_algorithm=
+              heif_chroma_downsampling_sharp_yuv;
           }
       }
 #endif
-    options=heif_encoding_options_alloc();
 #if LIBHEIF_NUMERIC_VERSION >= HEIC_COMPUTE_NUMERIC_VERSION(1,14,0)
     if (image->orientation != UndefinedOrientation)
       options->image_orientation=(enum heif_orientation) image->orientation;

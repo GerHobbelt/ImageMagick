@@ -2055,7 +2055,7 @@ MagickExport MagickBooleanType DrawGradientImage(Image *image,
   image_view=AcquireAuthenticCacheView(image,exception);
 #if defined(MAGICKCORE_OPENMP_SUPPORT)
   #pragma omp parallel for schedule(static) shared(status) \
-    magick_number_threads(image,image,(bounding_box.height-(size_t) bounding_box.y),1)
+    magick_number_threads(image,image,(size_t) (bounding_box.height-bounding_box.y),1)
 #endif
   for (y=bounding_box.y; y < (ssize_t) bounding_box.height; y++)
   {
@@ -2072,14 +2072,13 @@ MagickExport MagickBooleanType DrawGradientImage(Image *image,
 
     ssize_t
       i,
+      j,
       x;
-
-    ssize_t
-      j;
 
     if (status == MagickFalse)
       continue;
-    q=GetCacheViewAuthenticPixels(image_view,0,y,image->columns,1,exception);
+    q=GetCacheViewAuthenticPixels(image_view,bounding_box.x,y,(size_t)
+      (bounding_box.width-bounding_box.x),1,exception);
     if (q == (Quantum *) NULL)
       {
         status=MagickFalse;
@@ -3515,15 +3514,15 @@ static MagickBooleanType RenderMVGContent(Image *image,
                 (void) GetNextToken(q,&q,extent,token);
                 if (*token == ',')
                   (void) GetNextToken(q,&q,extent,token);
-                region.width=(size_t) CastDoubleToLong(floor(GetDrawValue(
+                region.width=CastDoubleToUnsigned(floor(GetDrawValue(
                   token,&next_token)+0.5));
                 if (token == next_token)
                   ThrowPointExpectedException(token,exception);
                 (void) GetNextToken(q,&q,extent,token);
                 if (*token == ',')
                   (void) GetNextToken(q,&q,extent,token);
-                region.height=CastDoubleToUnsigned(GetDrawValue(token,&next_token)+
-                  0.5);
+                region.height=CastDoubleToUnsigned(GetDrawValue(token,
+                  &next_token)+0.5);
                 if (token == next_token)
                   ThrowPointExpectedException(token,exception);
                 for (p=q; *q != '\0'; )
@@ -3945,21 +3944,21 @@ static MagickBooleanType RenderMVGContent(Image *image,
             (void) GetNextToken(q,&q,extent,token);
             if (*token == ',')
               (void) GetNextToken(q,&q,extent,token);
-            graphic_context[n]->viewbox.y=CastDoubleToLong(ceil(
-              GetDrawValue(token,&next_token)-0.5));
+            graphic_context[n]->viewbox.y=CastDoubleToLong(
+              ceil(GetDrawValue(token,&next_token)-0.5));
             if (token == next_token)
               ThrowPointExpectedException(token,exception);
             (void) GetNextToken(q,&q,extent,token);
             if (*token == ',')
               (void) GetNextToken(q,&q,extent,token);
-            graphic_context[n]->viewbox.width=(size_t) CastDoubleToLong(
+            graphic_context[n]->viewbox.width=CastDoubleToUnsigned(
               floor(GetDrawValue(token,&next_token)+0.5));
             if (token == next_token)
               ThrowPointExpectedException(token,exception);
             (void) GetNextToken(q,&q,extent,token);
             if (*token == ',')
               (void) GetNextToken(q,&q,extent,token);
-            graphic_context[n]->viewbox.height=(size_t) CastDoubleToLong(
+            graphic_context[n]->viewbox.height=(size_t) CastDoubleToUnsigned(
               floor(GetDrawValue(token,&next_token)+0.5));
             if (token == next_token)
               ThrowPointExpectedException(token,exception);
@@ -4014,12 +4013,12 @@ static MagickBooleanType RenderMVGContent(Image *image,
                 GradientType
                   type;
 
-              type=LinearGradient;
-              if (draw_info->gradient.type == RadialGradient)
-                type=RadialGradient;
-              (void) GradientImage(image,type,PadSpread,stops,number_stops,
-                exception);
-             }
+                type=LinearGradient;
+                if (draw_info->gradient.type == RadialGradient)
+                  type=RadialGradient;
+                (void) GradientImage(image,type,PadSpread,stops,number_stops,
+                  exception);
+              }
            if (number_stops > 0)
              stops=(StopInfo *) RelinquishMagickMemory(stops);
           }

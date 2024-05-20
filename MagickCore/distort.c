@@ -2378,7 +2378,7 @@ MagickExport Image *DistortImage(const Image *image, DistortMethod method,
           "       jj=jj%s(%lf*rr*rr*rr %+lf*rr*rr %+lf*rr %+lf);\n",
           method == BarrelDistortion ? "*" : "/",coeff[4],coeff[5],coeff[6],
           coeff[7]);
-        (void) FormatLocaleFile(stderr,"       v.p{fx*ii+xc,fy*jj+yc}' \\\n");
+        (void) FormatLocaleFile(stderr,"       p{ii+xc,jj+yc}' \\\n");
       }
       default:
         break;
@@ -2863,16 +2863,21 @@ if ( d.x == 0.5 && d.y == 0.5 ) {
         }
         else {
           /* resample the source image to find its correct color */
-          (void) ResamplePixelColor(resample_filter[id],s.x,s.y,&pixel,
+          status=ResamplePixelColor(resample_filter[id],s.x,s.y,&pixel,
             exception);
-          /* if validity between 0.0 and 1.0 mix result with invalid pixel */
-          if ( validity < 1.0 ) {
-            /* Do a blend of sample color and invalid pixel */
-            /* should this be a 'Blend', or an 'Over' compose */
-            CompositePixelInfoBlend(&pixel,validity,&invalid,(1.0-validity),
-              &pixel);
-          }
-          SetPixelViaPixelInfo(distort_image,&pixel,q);
+          if (status == MagickFalse)
+            SetPixelViaPixelInfo(distort_image,&invalid,q);
+          else
+            {
+              /* if validity between 0.0 & 1.0 mix result with invalid pixel */
+              if ( validity < 1.0 ) {
+                /* Do a blend of sample color and invalid pixel */
+                /* should this be a 'Blend', or an 'Over' compose */
+                CompositePixelInfoBlend(&pixel,validity,&invalid,(1.0-validity),
+                  &pixel);
+              }
+              SetPixelViaPixelInfo(distort_image,&pixel,q);
+            }
         }
         q+=GetPixelChannels(distort_image);
       }
