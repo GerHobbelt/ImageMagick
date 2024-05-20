@@ -44,6 +44,7 @@
 #include "MagickCore/blob.h"
 #include "MagickCore/blob-private.h"
 #include "MagickCore/constitute.h"
+#include "MagickCore/delegate.h"
 #include "MagickCore/exception.h"
 #include "MagickCore/exception-private.h"
 #include "MagickCore/image.h"
@@ -69,7 +70,9 @@
 #endif
 #if defined(MAGICKCORE_WINDOWS_SUPPORT)
 #  include <urlmon.h>
-#  pragma comment(lib, "urlmon.lib")
+#  if !defined(__MINGW32__)
+#    pragma comment(lib, "urlmon.lib")
+#  endif
 #endif
 
 /*

@@ -1788,7 +1788,7 @@ static void GetProfilesFromResourceBlock(Image *image,
         profile=BlobToProfileStringInfo("iptc",p,(size_t) count,exception);
         if (profile != (StringInfo *) NULL)
           (void) SetImageProfileInternal(image,GetStringInfoName(profile),
-            profile,MagickFalse,exception);
+            profile,MagickTrue,exception);
         p+=count;
         break;
       }
@@ -1805,10 +1805,10 @@ static void GetProfilesFromResourceBlock(Image *image,
         /*
           ICC Profile.
         */
-        profile=AcquireProfileStringInfo("icc",(size_t) count,exception);
+        profile=BlobToProfileStringInfo("icc",p,(size_t) count,exception);
         if (profile != (StringInfo *) NULL)
           (void) SetImageProfileInternal(image,GetStringInfoName(profile),
-            profile,MagickFalse,exception);
+            profile,MagickTrue,exception);
         p+=count;
         break;
       }
@@ -1817,10 +1817,10 @@ static void GetProfilesFromResourceBlock(Image *image,
         /*
           EXIF Profile.
         */
-        profile=AcquireProfileStringInfo("exif",(size_t) count,exception);
+        profile=BlobToProfileStringInfo("exif",p,(size_t) count,exception);
         if (profile != (StringInfo *) NULL)
           (void) SetImageProfileInternal(image,GetStringInfoName(profile),
-            profile,MagickFalse,exception);
+            profile,MagickTrue,exception);
         p+=count;
         break;
       }
@@ -1829,10 +1829,10 @@ static void GetProfilesFromResourceBlock(Image *image,
         /*
           XMP Profile.
         */
-        profile=AcquireProfileStringInfo("xmp",(size_t) count,exception);
+        profile=BlobToProfileStringInfo("xmp",p,(size_t) count,exception);
         if (profile != (StringInfo *) NULL)
           (void) SetImageProfileInternal(image,GetStringInfoName(profile),
-            profile,MagickFalse,exception);
+            profile,MagickTrue,exception);
         p+=count;
         break;
       }
@@ -1962,7 +1962,8 @@ static MagickBooleanType SetImageProfileInternal(Image *image,const char *name,
     {
       if (length != 0)
         (void) ThrowMagickException(exception,GetMagickModule(),
-          ResourceLimitWarning,"ProfileSizeExceedsLimit","`%zu'",length);
+          ResourceLimitWarning,"ProfileSizeExceedsLimit","`%llu'",
+          (unsigned long long) length);
       profile=DestroyStringInfo(profile);
       return(MagickTrue);
     }
@@ -2002,7 +2003,8 @@ MagickExport StringInfo *AcquireProfileStringInfo(const char *name,
 
   if (length > GetMaxProfileSize())
     (void) ThrowMagickException(exception,GetMagickModule(),
-      ResourceLimitWarning,"ProfileSizeExceedsLimit","`%zu'",length);
+      ResourceLimitWarning,"ProfileSizeExceedsLimit","`%llu'",
+      (unsigned long long) length);
   else
     {
       profile=AcquireStringInfo(length);
