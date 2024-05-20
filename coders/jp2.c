@@ -60,7 +60,7 @@
 #include "MagickCore/monitor-private.h"
 #include "MagickCore/option.h"
 #include "MagickCore/pixel-accessor.h"
-#include "MagickCore/profile.h"
+#include "MagickCore/profile-private.h"
 #include "MagickCore/property.h"
 #include "MagickCore/quantum-private.h"
 #include "MagickCore/resource_.h"
@@ -356,6 +356,7 @@ static Image *ReadJP2Image(const ImageInfo *image_info,ExceptionInfo *exception)
   opj_stream_set_skip_function(jp2_stream,JP2SkipHandler);
   opj_stream_set_user_data(jp2_stream,image,NULL);
   opj_stream_set_user_data_length(jp2_stream,GetBlobSize(image));
+  jp2_image=(opj_image_t *) NULL;
   if (opj_read_header(jp2_stream,jp2_codec,&jp2_image) == 0)
     {
       opj_stream_destroy(jp2_stream);
@@ -463,8 +464,16 @@ static Image *ReadJP2Image(const ImageInfo *image_info,ExceptionInfo *exception)
           number_meta_channels-=1;
         }
       if (number_meta_channels > 0)
-        (void) SetPixelMetaChannels(image,(size_t) number_meta_channels,
-          exception);
+        {
+          status=SetPixelMetaChannels(image,(size_t) number_meta_channels,
+            exception);
+          if (status == MagickFalse)
+            {
+              opj_destroy_codec(jp2_codec);
+              opj_image_destroy(jp2_image);
+              return(DestroyImageList(image));
+            }
+        }
     }
   else if (jp2_image->numcomps == 2)
     {
@@ -478,13 +487,9 @@ static Image *ReadJP2Image(const ImageInfo *image_info,ExceptionInfo *exception)
       StringInfo
         *profile;
 
-      profile=BlobToStringInfo(jp2_image->icc_profile_buf,
-        jp2_image->icc_profile_len);
-      if (profile != (StringInfo *) NULL)
-        {
-          SetImageProfile(image,"icc",profile,exception);
-          profile=DestroyStringInfo(profile);
-        }
+      profile=BlobToProfileStringInfo("icc",jp2_image->icc_profile_buf,
+        jp2_image->icc_profile_len,exception);
+      (void) SetImageProfilePrivate(image,profile,exception);
     }
   if (image->ping != MagickFalse)
     {

@@ -74,7 +74,7 @@
 #include "MagickCore/option.h"
 #include "MagickCore/pixel.h"
 #include "MagickCore/pixel-accessor.h"
-#include "MagickCore/profile.h"
+#include "MagickCore/profile-private.h"
 #include "MagickCore/property.h"
 #include "MagickCore/quantum-private.h"
 #include "MagickCore/resource_.h"
@@ -1630,13 +1630,11 @@ Magick_png_read_raw_profile(png_struct *ping,Image *image,
     return(MagickFalse);
   }
 
-  profile=BlobToStringInfo((const void *) NULL,(size_t) length);
+  profile=AcquireProfileStringInfo(&text[ii].key[17],(size_t) length,
+    exception);
 
   if (profile == (StringInfo *) NULL)
-  {
-    png_warning(ping, "unable to copy profile");
-    return(MagickFalse);
-  }
+    return(MagickTrue);
 
   /* copy profile, skipping white space and column 1 "=" signs */
   dp=GetStringInfoDatum(profile);
@@ -1664,13 +1662,12 @@ Magick_png_read_raw_profile(png_struct *ping,Image *image,
   /*
     We have already read "Raw profile type.
   */
-  (void) SetImageProfile(image,&text[ii].key[17],profile,exception);
-  profile=DestroyStringInfo(profile);
+  (void) SetImageProfilePrivate(image,profile,exception);
 
   if (image_info->verbose)
     (void) printf(" Found a generic profile, type %s\n",&text[ii].key[17]);
 
-  return MagickTrue;
+  return(MagickTrue);
 }
 
 static int PNGSetExifProfile(Image *image,png_byte *data,png_size_t size,
@@ -1679,15 +1676,17 @@ static int PNGSetExifProfile(Image *image,png_byte *data,png_size_t size,
   StringInfo
     *profile;
 
-  if ((size > 6) && (data[0] == 'E') && (data[1] == 'x') && (data[2] == 'i') &&
+  if ((data == (png_byte *) NULL) || (size < 6))
+    return(1);
+  if ((data[0] == 'E') && (data[1] == 'x') && (data[2] == 'i') &&
       (data[3] == 'f') && (data[4] == '\0') && (data[5] == '\0'))
-    profile=BlobToStringInfo((const void *) data,size);
+    profile=BlobToProfileStringInfo("exif",(const void *) data,size,exception);
   else
     {
       unsigned char
         *p;
 
-      profile=BlobToStringInfo((const void *) NULL,size+6);
+      profile=AcquireProfileStringInfo("exif",size+6,exception);
       if (profile != (StringInfo *) NULL)
         {
           p=GetStringInfoDatum(profile);
@@ -1700,15 +1699,7 @@ static int PNGSetExifProfile(Image *image,png_byte *data,png_size_t size,
           (void) CopyMagickMemory(p,data,size);
         }
     }
-  if (profile == (StringInfo *) NULL)
-    {
-      (void) ThrowMagickException(exception,GetMagickModule(),
-        ResourceLimitError,"MemoryAllocationFailed","`%s'",
-        image->filename);
-      return(-1);
-    }
-  (void) SetImageProfile(image,"exif",profile,exception);
-  profile=DestroyStringInfo(profile);
+  (void) SetImageProfilePrivate(image,profile,exception);
   return(1);
 }
 
@@ -1765,17 +1756,9 @@ static int PNGParseiTXt(Image *image,png_byte *data,png_size_t size,
       }
       if (((MagickOffsetType) size-offset) < 1)
         return(0);
-      profile=BlobToStringInfo((const void *) (data+offset),
-        size-(size_t) offset);
-      if (profile == (StringInfo *) NULL)
-        {
-          (void) ThrowMagickException(exception,GetMagickModule(),
-            ResourceLimitError,"MemoryAllocationFailed","`%s'",
-            image->filename);
-          return(-1);
-        }
-      (void) SetImageProfile(image,"xmp",profile,exception);
-      profile=DestroyStringInfo(profile);
+      profile=BlobToProfileStringInfo("xmp",(const void *) (data+offset),
+        size-(size_t) offset,exception);
+      (void) SetImageProfilePrivate(image,profile,exception);
       return(1);
     }
   /*
@@ -2546,82 +2529,76 @@ static Image *ReadOnePNGImage(MngReadInfo *mng_info,
             (void) LogMagickEvent(CoderEvent,GetMagickModule(),
               "    Reading PNG iCCP chunk.");
 
-          profile=BlobToStringInfo(info,(size_t) profile_length);
+          profile=BlobToProfileStringInfo("icc",info,(size_t) profile_length,
+            exception);
 
-          if (profile == (StringInfo *) NULL)
+          if (profile != (StringInfo *) NULL)
           {
-            png_warning(ping, "ICC profile is NULL");
-            profile=DestroyStringInfo(profile);
-          }
-          else
-          {
-            if (ping_preserve_iCCP == MagickFalse)
+            if (ping_preserve_iCCP != MagickFalse)
+              (void) SetImageProfilePrivate(image,profile,exception);
+            else
             {
-                 int
-                   icheck,
-                   got_crc=0;
+              int
+                icheck,
+                got_crc=0;
 
 
-                 png_uint_32
-                   profile_crc=0;
+              png_uint_32
+                profile_crc=0;
 
-                 unsigned char
-                   *data;
+              unsigned char
+                *data;
 
-                 profile_length=(png_uint_32) GetStringInfoLength(profile);
+              profile_length=(png_uint_32) GetStringInfoLength(profile);
 
-                 for (icheck=0; sRGB_info[icheck].len > 0; icheck++)
-                 {
-                   if (profile_length == sRGB_info[icheck].len)
-                   {
-                     if (got_crc == 0)
-                     {
-                       if (logging != MagickFalse)
-                         (void) LogMagickEvent(CoderEvent,GetMagickModule(),
-                           "    Got a %lu-byte ICC profile (potentially sRGB)",
-                           (unsigned long) profile_length);
-
-                       data=GetStringInfoDatum(profile);
-                       profile_crc=crc32(0,data,profile_length);
-
-                       if (logging != MagickFalse)
-                         (void) LogMagickEvent(CoderEvent,GetMagickModule(),
-                           "      with crc=%8x",(unsigned int) profile_crc);
-                       got_crc++;
-                     }
-
-                     if (profile_crc == sRGB_info[icheck].crc)
-                     {
-                        if (logging != MagickFalse)
-                          (void) LogMagickEvent(CoderEvent,GetMagickModule(),
-                              "      It is sRGB with rendering intent = %s",
-                        Magick_RenderingIntentString_from_PNG_RenderingIntent(
-                             sRGB_info[icheck].intent));
-                        if (image->rendering_intent==UndefinedIntent)
-                        {
-                          image->rendering_intent=
-                          Magick_RenderingIntent_from_PNG_RenderingIntent(
-                             sRGB_info[icheck].intent);
-                        }
-                        break;
-                     }
-                   }
-                 }
-                 if (sRGB_info[icheck].len == 0)
-                 {
+              for (icheck=0; sRGB_info[icheck].len > 0; icheck++)
+              {
+                if (profile_length == sRGB_info[icheck].len)
+                {
+                  if (got_crc == 0)
+                  {
                     if (logging != MagickFalse)
                       (void) LogMagickEvent(CoderEvent,GetMagickModule(),
-                          "    Got %lu-byte ICC profile not recognized as sRGB",
-                          (unsigned long) profile_length);
-                    (void) SetImageProfile(image,"icc",profile,exception);
-                 }
-            }
-            else /* Preserve-iCCP */
-            {
-                    (void) SetImageProfile(image,"icc",profile,exception);
-            }
+                        "    Got a %lu-byte ICC profile (potentially sRGB)",
+                        (unsigned long) profile_length);
 
-            profile=DestroyStringInfo(profile);
+                    data=GetStringInfoDatum(profile);
+                    profile_crc=crc32(0,data,profile_length);
+
+                    if (logging != MagickFalse)
+                      (void) LogMagickEvent(CoderEvent,GetMagickModule(),
+                        "      with crc=%8x",(unsigned int) profile_crc);
+                    got_crc++;
+                  }
+
+                  if (profile_crc == sRGB_info[icheck].crc)
+                  {
+                    if (logging != MagickFalse)
+                      (void) LogMagickEvent(CoderEvent,GetMagickModule(),
+                          "      It is sRGB with rendering intent = %s",
+                    Magick_RenderingIntentString_from_PNG_RenderingIntent(
+                          sRGB_info[icheck].intent));
+                    if (image->rendering_intent==UndefinedIntent)
+                    {
+                      image->rendering_intent=
+                      Magick_RenderingIntent_from_PNG_RenderingIntent(
+                          sRGB_info[icheck].intent);
+                    }
+                    break;
+                  }
+                }
+              }
+              if (sRGB_info[icheck].len != 0)
+                profile=DestroyStringInfo(profile);
+              else
+                {
+                  if (logging != MagickFalse)
+                    (void) LogMagickEvent(CoderEvent,GetMagickModule(),
+                        "    Got %lu-byte ICC profile not recognized as sRGB",
+                        (unsigned long) profile_length);
+                  (void) SetImageProfilePrivate(image,profile,exception);
+                }
+            }
           }
       }
     }
@@ -11758,10 +11735,8 @@ static MagickBooleanType WritePNGImage(const ImageInfo *image_info,
         mng_info->depth = 16;
 
       else
-        (void) ThrowMagickException(exception,
-             GetMagickModule(),CoderWarning,
-             "ignoring invalid defined png:bit-depth",
-             "=%s",value);
+        (void) ThrowMagickException(exception,GetMagickModule(),CoderWarning,
+          "ignoring invalid defined png:bit-depth","=%s",value);
 
       if (logging != MagickFalse)
         (void) LogMagickEvent(CoderEvent,GetMagickModule(),
@@ -11792,10 +11767,8 @@ static MagickBooleanType WritePNGImage(const ImageInfo *image_info,
         mng_info->colortype = 7;
 
       else
-        (void) ThrowMagickException(exception,
-             GetMagickModule(),CoderWarning,
-             "ignoring invalid defined png:color-type",
-             "=%s",value);
+        (void) ThrowMagickException(exception,GetMagickModule(),CoderWarning,
+          "ignoring invalid defined png:color-type","=%s",value);
 
       if (logging != MagickFalse)
         (void) LogMagickEvent(CoderEvent,GetMagickModule(),
@@ -11922,10 +11895,8 @@ static MagickBooleanType WritePNGImage(const ImageInfo *image_info,
         mng_info->compression_level = 10;
 
       else
-        (void) ThrowMagickException(exception,
-             GetMagickModule(),CoderWarning,
-             "ignoring invalid defined png:compression-level",
-             "=%s",value);
+        (void) ThrowMagickException(exception,GetMagickModule(),CoderWarning,
+          "ignoring invalid defined png:compression-level","=%s",value);
     }
 
   value=GetImageOption(image_info,"png:compression-strategy");
@@ -11957,10 +11928,8 @@ static MagickBooleanType WritePNGImage(const ImageInfo *image_info,
 #endif
 
       else
-        (void) ThrowMagickException(exception,
-             GetMagickModule(),CoderWarning,
-             "ignoring invalid defined png:compression-strategy",
-             "=%s",value);
+        (void) ThrowMagickException(exception,GetMagickModule(),CoderWarning,
+          "ignoring invalid defined png:compression-strategy","=%s",value);
     }
 
   value=GetImageOption(image_info,"png:compression-filter");
@@ -11976,11 +11945,9 @@ static MagickBooleanType WritePNGImage(const ImageInfo *image_info,
        */
 
       mng_info->compression_filter = StringToUnsignedLong(value)+1;
-      if (mng_info->compression_filter > 5)
-        (void) ThrowMagickException(exception,
-             GetMagickModule(),CoderWarning,
-             "ignoring invalid defined png:compression-filter",
-             "=%s",value);
+      if (mng_info->compression_filter > 6)
+        (void) ThrowMagickException(exception,GetMagickModule(),CoderWarning,
+          "ignoring invalid defined png:compression-filter","=%s",value);
   }
 
   for (source=0; source<8; source++)

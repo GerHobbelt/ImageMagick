@@ -67,7 +67,9 @@
 #include "MagickCore/memory-private.h"
 #include "MagickCore/option.h"
 #include "MagickCore/pixel-accessor.h"
+#include "MagickCore/profile-private.h"
 #include "MagickCore/quantum-private.h"
+#include "MagickCore/resource_.h"
 #include "MagickCore/static.h"
 #include "MagickCore/string_.h"
 #include "MagickCore/string-private.h"
@@ -174,12 +176,8 @@ static MagickBooleanType ReadHEICColorProfile(Image *image,
       StringInfo
         *profile;
 
-      profile=BlobToStringInfo(color_profile,length);
-      if (profile != (StringInfo*) NULL)
-        {
-          (void) SetImageProfile(image,"icc",profile,exception);
-          profile=DestroyStringInfo(profile);
-        }
+      profile=BlobToProfileStringInfo("icc",color_profile,length,exception);
+      (void) SetImageProfilePrivate(image,profile,exception);
     }
   color_profile=(unsigned char *) RelinquishMagickMemory(color_profile);
   return(MagickTrue);
@@ -216,7 +214,7 @@ static MagickBooleanType ReadHEICExifProfile(Image *image,
   if ((MagickSizeType) length > GetBlobSize(image))
     ThrowBinaryException(CorruptImageError,"InsufficientImageDataInFile",
       image->filename);
-  exif_profile=AcquireStringInfo(length);
+  exif_profile=AcquireProfileStringInfo("exif",length,exception);
   error=heif_image_handle_get_metadata(image_handle,id,
     GetStringInfoDatum(exif_profile));
   if ((IsHEIFSuccess(image,&error,exception) != MagickFalse) && (length > 4))
@@ -255,10 +253,12 @@ static MagickBooleanType ReadHEICExifProfile(Image *image,
       if (offset < GetStringInfoLength(exif_profile))
         {
           (void) DestroyStringInfo(SplitStringInfo(exif_profile,offset));
-          (void) SetImageProfile(image,"exif",exif_profile,exception);
+          (void) SetImageProfilePrivate(image,exif_profile,exception);
+          exif_profile=(StringInfo *) NULL;
         }
     }
-  exif_profile=DestroyStringInfo(exif_profile);
+  if (exif_profile != (StringInfo *) NULL)
+    exif_profile=DestroyStringInfo(exif_profile);
   return(MagickTrue);
 }
 
@@ -302,12 +302,8 @@ static MagickBooleanType ReadHEICXMPProfile(Image *image,
       StringInfo
         *profile;
 
-      profile=BlobToStringInfo(xmp_profile,length);
-      if (profile != (StringInfo*) NULL)
-        {
-          (void) SetImageProfile(image,"xmp",profile,exception);
-          profile=DestroyStringInfo(profile);
-        }
+      profile=BlobToProfileStringInfo("xmp",xmp_profile,length,exception);
+      (void) SetImageProfilePrivate(image,profile,exception);
     }
   xmp_profile=(unsigned char *) RelinquishMagickMemory(xmp_profile);
   return(MagickTrue);
@@ -557,6 +553,9 @@ static Image *ReadHEICImage(const ImageInfo *image_info,
   Image
     *image;
 
+  int
+    max_size;
+
   MagickBooleanType
     status;
 
@@ -605,6 +604,10 @@ static Image *ReadHEICImage(const ImageInfo *image_info,
   heif_context=heif_context_alloc();
   if (heif_context == (struct heif_context *) NULL)
     ThrowReaderException(ResourceLimitError,"MemoryAllocationFailed");
+  max_size=(int) MagickMin(MagickMin(GetMagickResourceLimit(WidthResource),
+    GetMagickResourceLimit(HeightResource)),INT_MAX);
+  if (max_size != INT_MAX)
+    heif_context_set_maximum_image_size_limit(heif_context,max_size);
   error=heif_context_read_from_file(heif_context,image->filename,
     (const struct heif_reading_options *) NULL);
   if (IsHEIFSuccess(image,&error,exception) == MagickFalse)

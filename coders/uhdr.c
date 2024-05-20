@@ -42,6 +42,7 @@
 #include "MagickCore/list.h"
 #include "MagickCore/module.h"
 #include "MagickCore/option.h"
+#include "MagickCore/profile-private.h"
 #if defined(MAGICKCORE_UHDR_DELEGATE)
 #include "ultrahdr_api.h"
 #include "uhdr.h"
@@ -177,17 +178,18 @@ static Image *ReadUHDRImage(const ImageInfo *image_info,
   else
     decoded_img_fmt = UHDR_IMG_FMT_UNSPECIFIED;
 
-#define CHECK_IF_ERR(x) \
-  { \
-    uhdr_error_info_t retval = (x); \
-    if (retval.error_code != UHDR_CODEC_OK) \
-    { \
-      (void) ThrowMagickException(exception,GetMagickModule(),CoderError, \
-        retval.detail,"`%s'",image->filename); \
-      uhdr_release_decoder(handle); \
-      CloseBlob(image); \
-      return DestroyImageList(image); \
-    } \
+#define CHECK_IF_ERR(x)                                                                       \
+  {                                                                                           \
+    uhdr_error_info_t retval = (x);                                                           \
+    if (retval.error_code != UHDR_CODEC_OK)                                                   \
+    {                                                                                         \
+      (void)ThrowMagickException(exception, GetMagickModule(), CoderError,                    \
+                                 retval.has_detail ? retval.detail : "unknown error", "`%s'", \
+                                 image->filename);                                            \
+      uhdr_release_decoder(handle);                                                           \
+      CloseBlob(image);                                                                       \
+      return DestroyImageList(image);                                                         \
+    }                                                                                         \
   }
 
   CHECK_IF_ERR(uhdr_dec_set_image(handle, &img))
@@ -225,10 +227,9 @@ static Image *ReadUHDRImage(const ImageInfo *image_info,
   uhdr_mem_block_t *exif = uhdr_dec_get_exif(handle);
   if (exif != NULL)
   {
-    StringInfo *exif_data = AcquireStringInfo(exif->data_sz);
-    memcpy(GetStringInfoDatum(exif_data), exif->data, exif->data_sz);
-    (void)SetImageProfile(image, "exif", exif_data, exception);
-    exif_data = DestroyStringInfo(exif_data);
+    StringInfo *exif_data = BlobToProfileStringInfo("exif",exif->data,
+      exif->data_sz,exception);
+    (void) SetImageProfilePrivate(image,exif_data,exception);
   }
 
   SetImageColorspace(image, RGBColorspace, exception);
@@ -714,16 +715,17 @@ static MagickBooleanType WriteUHDRImage(const ImageInfo *image_info,
   {
     uhdr_codec_private_t *handle = uhdr_create_encoder();
 
-#define CHECK_IF_ERR(x) \
-  { \
-    uhdr_error_info_t retval = (x); \
-    if (retval.error_code != UHDR_CODEC_OK) \
-    { \
-      (void) ThrowMagickException(exception,GetMagickModule(),CoderError, \
-        retval.detail,"`%s'",image->filename); \
-      uhdr_release_encoder(handle); \
-      status = MagickFalse; \
-    } \
+#define CHECK_IF_ERR(x)                                                                       \
+  {                                                                                           \
+    uhdr_error_info_t retval = (x);                                                           \
+    if (retval.error_code != UHDR_CODEC_OK)                                                   \
+    {                                                                                         \
+      (void)ThrowMagickException(exception, GetMagickModule(), CoderError,                    \
+                                 retval.has_detail ? retval.detail : "unknown error", "`%s'", \
+                                 image->filename);                                            \
+      uhdr_release_encoder(handle);                                                           \
+      status = MagickFalse;                                                                   \
+    }                                                                                         \
   }
 
     if (image->quality > 0 && image->quality <= 100)

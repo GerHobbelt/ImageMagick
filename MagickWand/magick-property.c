@@ -51,6 +51,7 @@
 #include "MagickWand/magick-wand-private.h"
 #include "MagickWand/wand.h"
 #include "MagickCore/image-private.h"
+#include "MagickCore/profile-private.h"
 #include "MagickCore/string-private.h"
 
 /*
@@ -2376,10 +2377,8 @@ WandExport MagickBooleanType MagickSetImageProfile(MagickWand *wand,
     (void) LogMagickEvent(WandEvent,GetMagickModule(),"%s",wand->name);
   if (wand->images == (Image *) NULL)
     ThrowWandException(WandError,"ContainsNoImages",wand->name);
-  profile_info=AcquireStringInfo((size_t) length);
-  SetStringInfoDatum(profile_info,(const unsigned char *) profile);
-  status=SetImageProfile(wand->images,name,profile_info,wand->exception);
-  profile_info=DestroyStringInfo(profile_info);
+  profile_info=BlobToProfileStringInfo(name,profile,length,wand->exception);
+  status=SetImageProfilePrivate(wand->images,profile_info,wand->exception);
   return(status);
 }
 
