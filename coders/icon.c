@@ -260,7 +260,8 @@ static Image *Read1XImage(const ImageInfo *image_info,Image *image,
       }
     image=SyncNextImageInList(image);
   }
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   if (status == MagickFalse)
     return(DestroyImageList(image));
   return(GetFirstImageInList(image));
@@ -1080,7 +1081,7 @@ static MagickBooleanType WriteICONImage(const ImageInfo *image_info,
             return(MagickFalse);
           }
         write_info=CloneImageInfo(image_info);
-        (void) CopyMagickString(write_info->magick,"PNG",MagickPathExtent);
+        (void) CopyMagickString(write_info->magick,"PNG32",MagickPathExtent);
         length=0;
         /*
           Don't write any ancillary chunks except for gAMA.
@@ -1089,8 +1090,8 @@ static MagickBooleanType WriteICONImage(const ImageInfo *image_info,
         /*
           Only write PNG32 formatted PNG (32-bit RGBA), 8 bits per channel.
         */
-        (void) SetImageArtifact(write_image,"png:format","png32");
-        (void) SetImageArtifact(write_image,"png:color-type","6");
+        (void) SetImageArtifact(write_image,"png:IHDR.color-type-orig","6");
+        (void) SetImageArtifact(write_image,"png:IHDR.bit-depth-orig","8");
         png=(unsigned char *) ImageToBlob(write_info,write_image,&length,
           exception);
         write_image=DestroyImageList(write_image);

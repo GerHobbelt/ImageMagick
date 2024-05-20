@@ -519,7 +519,8 @@ static Image *ReadVIPSImage(const ImageInfo *image_info,
       SetImageProperty(image,"vips:metadata",metadata,exception);
       metadata=(char *) RelinquishMagickMemory(metadata);
     }
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   if (status == MagickFalse)
     return((Image *) NULL);
   return(image);
@@ -764,6 +765,7 @@ static MagickBooleanType WriteVIPSImage(const ImageInfo *image_info,
   metadata=GetImageProperty(image,"vips:metadata",exception);
   if (metadata != (const char*) NULL)
     WriteBlobString(image,metadata);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   return(status);
 }

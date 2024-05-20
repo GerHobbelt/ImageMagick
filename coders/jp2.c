@@ -579,12 +579,13 @@ static Image *ReadJP2Image(const ImageInfo *image_info,ExceptionInfo *exception)
           }
           default:
           {
-            size_t
-              offset=MetaPixelChannels+i-3;
+            ssize_t
+              offset = MetaPixelChannels+i-3;
 
             if ((image->alpha_trait & BlendPixelTrait) != 0)
               offset--;
-            SetPixelChannel(image,(PixelChannel) offset,ClampToQuantum(pixel),q);
+            SetPixelChannel(image,(PixelChannel) offset,ClampToQuantum(pixel),
+              q);
             break;
           }
         }
@@ -1211,7 +1212,8 @@ static MagickBooleanType WriteJP2Image(const ImageInfo *image_info,Image *image,
   opj_destroy_codec(jp2_codec);
   opj_image_destroy(jp2_image);
   parameters=(opj_cparameters_t *) RelinquishMagickMemory(parameters);
-  (void) CloseBlob(image);
-  return(MagickTrue);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
+  return(status);
 }
 #endif

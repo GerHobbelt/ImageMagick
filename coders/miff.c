@@ -40,6 +40,7 @@
   Include declarations.
 */
 #include "MagickCore/studio.h"
+#include "MagickCore/artifact.h"
 #include "MagickCore/attribute.h"
 #include "MagickCore/blob.h"
 #include "MagickCore/blob-private.h"
@@ -1756,7 +1757,8 @@ static Image *ReadMIFFImage(const ImageInfo *image_info,
           break;
       }
   } while (c != EOF && ((c == 'i') || (c == 'I')));
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   if (status == MagickFalse)
     return(DestroyImageList(image));
   return(GetFirstImageInList(image));
@@ -2132,8 +2134,12 @@ static MagickBooleanType WriteMIFFImage(const ImageInfo *image_info,
           }
       }
     else
-      if (image->depth < 16)
-        (void) DeleteImageProperty(image,"quantum:format");
+      if ((quantum_info->format == FloatingPointQuantumFormat) &&
+          (image->depth < 16))
+        {
+          status=SetQuantumFormat(image,quantum_info,UnsignedQuantumFormat);
+          status=SetQuantumDepth(image,quantum_info,image->depth);
+        }
     compression=UndefinedCompression;
     if (image_info->compression != UndefinedCompression)
       compression=image_info->compression;
@@ -2848,6 +2854,7 @@ static MagickBooleanType WriteMIFFImage(const ImageInfo *image_info,
     if (status == MagickFalse)
       break;
   } while (image_info->adjoin != MagickFalse);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   return(status);
 }

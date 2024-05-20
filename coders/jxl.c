@@ -738,7 +738,10 @@ static Image *ReadJXLImage(const ImageInfo *image_info,ExceptionInfo *exception)
   JxlDecoderDestroy(jxl_info);
   if (jxl_status == JXL_DEC_ERROR)
     ThrowReaderException(CorruptImageError,"UnableToReadImageData");
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
+  if (status == MagickFalse)
+    return(DestroyImageList(image));
   return(GetFirstImageInList(image));
 }
 #endif
@@ -1192,7 +1195,8 @@ static MagickBooleanType WriteJXLImage(const ImageInfo *image_info,Image *image,
   JxlEncoderDestroy(jxl_info);
   if (jxl_status != JXL_ENC_SUCCESS)
     ThrowWriterException(CoderError,"UnableToWriteImageData");
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   return(status);
 }
 #endif

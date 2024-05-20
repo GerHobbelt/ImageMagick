@@ -248,7 +248,10 @@ static Image *ReadMAPImage(const ImageInfo *image_info,ExceptionInfo *exception)
   if (y < (ssize_t) image->rows)
     ThrowFileException(exception,CorruptImageError,"UnexpectedEndOfFile",
       image->filename);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
+  if (status == MagickFalse)
+    return(DestroyImageList(image));
   return(GetFirstImageInList(image));
 }
 
@@ -451,6 +454,7 @@ static MagickBooleanType WriteMAPImage(const ImageInfo *image_info,Image *image,
     (void) WriteBlob(image,(size_t) (q-pixels),pixels);
   }
   pixels=(unsigned char *) RelinquishMagickMemory(pixels);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   return(status);
 }

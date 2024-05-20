@@ -583,6 +583,8 @@ DblBreak:
 
   if((clone_info->file=fopen(clone_info->filename,"rb"))==NULL) goto UnlinkFile;
   if( (image2 = AcquireImage(clone_info,exception))==NULL ) goto EraseFile;
+  image2->columns=0;
+  image2->rows=0;
   status = OpenBlob(clone_info,image2,ReadBinaryBlobMode,exception);
   if (status == MagickFalse)
   {
@@ -837,7 +839,8 @@ skip_reading_current:
     if (status == MagickFalse)
       break;
   }
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   if (status == MagickFalse)
     return(DestroyImageList(image));
   return(GetFirstImageInList(image));
@@ -1744,6 +1747,7 @@ static MagickBooleanType WriteMATImage(const ImageInfo *image_info,Image *image,
     if (status == MagickFalse)
       break;
   } while (image_info->adjoin != MagickFalse);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   return(status);
 }

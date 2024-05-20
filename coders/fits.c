@@ -294,6 +294,8 @@ static Image *ReadFITSImage(const ImageInfo *image_info,
     (void) LogMagickEvent(TraceEvent,GetMagickModule(),"%s",
       image_info->filename);
   image=AcquireImage(image_info,exception);
+  image->columns=0;
+  image->rows=0;
   status=OpenBlob(image_info,image,ReadBinaryBlobMode,exception);
   if (status == MagickFalse)
     {
@@ -559,7 +561,8 @@ static Image *ReadFITSImage(const ImageInfo *image_info,
     if (status == MagickFalse)
       break;
   } while (1);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   if (status == MagickFalse)
     return(DestroyImageList(image));
   return(GetFirstImageInList(image));
@@ -909,6 +912,7 @@ static MagickBooleanType WriteFITSImage(const ImageInfo *image_info,
       break;
   } while (image_info->adjoin != MagickFalse);
   fits_info=DestroyString(fits_info);
-  (void) CloseBlob(image);
-  return(MagickTrue);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
+  return(status);
 }

@@ -1582,7 +1582,10 @@ static Image *ReadOneJPEGImage(const ImageInfo *image_info,
   JPEGDestroyDecompress(jpeg_info);
   client_info=(JPEGClientInfo *) RelinquishMagickMemory(client_info);
   memory_info=RelinquishVirtualMemory(memory_info);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
+  if (status == MagickFalse)
+    return(DestroyImageList(image));
   return(GetFirstImageInList(image));
 }
 
@@ -2690,13 +2693,26 @@ static MagickBooleanType WriteJPEGImage_(const ImageInfo *image_info,
             (void) AcquireUniqueFilename(jpeg_image->filename);
             jpeg_image->quality=minimum+(maximum-minimum+1)/2;
             status=WriteJPEGImage(extent_info,jpeg_image,exception);
+            (void) RelinquishUniqueFileResource(jpeg_image->filename);
+            if (status == MagickFalse)
+              continue;
             if (GetBlobSize(jpeg_image) <= extent)
               minimum=jpeg_image->quality+1;
             else
               maximum=jpeg_image->quality-1;
-            (void) RelinquishUniqueFileResource(jpeg_image->filename);
           }
-          quality=(int) minimum-1;
+          while (minimum > 2)
+          {
+            (void) AcquireUniqueFilename(jpeg_image->filename);
+            jpeg_image->quality=minimum--;
+            status=WriteJPEGImage(extent_info,jpeg_image,exception);
+            (void) RelinquishUniqueFileResource(jpeg_image->filename);
+            if (status == MagickFalse)
+              continue;
+            if (GetBlobSize(jpeg_image) <= extent)
+              break;
+          }
+          quality=(int) minimum;
           jpeg_image=DestroyImage(jpeg_image);
         }
       extent_info=DestroyImageInfo(extent_info);
@@ -3148,10 +3164,11 @@ static MagickBooleanType WriteJPEGImage_(const ImageInfo *image_info,
   jpeg_destroy_compress(jpeg_info);
   client_info=(JPEGClientInfo *) RelinquishMagickMemory(client_info);
   memory_info=RelinquishVirtualMemory(memory_info);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   if (jps_image != (Image *) NULL)
     jps_image=DestroyImage(jps_image);
-  return(MagickTrue);
+  return(status);
 }
 
 static MagickBooleanType WriteJPEGImage(const ImageInfo *image_info,

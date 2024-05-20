@@ -2730,7 +2730,8 @@ static MagickBooleanType WriteGROUP4Image(const ImageInfo *image_info,
   huffman_image=DestroyImage(huffman_image);
   (void) fclose(file);
   (void) RelinquishUniqueFileResource(filename);
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   return(status);
 }
 #endif
@@ -3676,8 +3677,7 @@ static MagickBooleanType WriteTIFFImage(const ImageInfo *image_info,
             photometric=PHOTOMETRIC_RGB;
         (void) TIFFSetField(tiff,TIFFTAG_SAMPLESPERPIXEL,3);
         if ((image_info->type != TrueColorType) &&
-            (image_info->type != TrueColorAlphaType) &&
-            (image->number_meta_channels == 0))
+            (image_info->type != TrueColorAlphaType))
           {
             if ((image_info->type != PaletteType) &&
                 (IdentifyImageCoderGray(image,exception) != MagickFalse))
@@ -4328,6 +4328,8 @@ static MagickBooleanType WriteTIFFImage(const ImageInfo *image_info,
     if (status == MagickFalse)
       break;
   } while (adjoin != MagickFalse);
+  if (TIFFFlush(tiff) != 1)
+    status=MagickFalse;
   TIFFClose(tiff);
   return(status);
 }

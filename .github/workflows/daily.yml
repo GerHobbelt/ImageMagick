@@ -2,6 +2,11 @@ on:
   workflow_dispatch:
   schedule:
   - cron: 0 6 * * *
+  pull_request:
+    branches:
+    - main
+    paths:
+    - '.github/workflows/daily.yml'
 
 name: daily
 jobs:
@@ -35,7 +40,7 @@ jobs:
   build_linux:
     name: 'Linux Q${{matrix.quantum}}-x64 hdri=${{matrix.hdri}} (${{matrix.modules}}) (${{ matrix.compiler }})'
     container:
-      image: ubuntu:18.04
+      image: ubuntu:20.04
     runs-on: ubuntu-latest
 
     strategy:
@@ -56,16 +61,19 @@ jobs:
           - compiler: gcc
             cxx_compiler: g++
             compiler_flags: -Wall -Wextra -Werror -Wno-builtin-declaration-mismatch
+            packages: gcc g++
           - compiler: clang
             cxx_compiler: clang++
             compiler_flags: -Wall -Wextra -Werror -Wno-unused-function -Wno-incompatible-library-redeclaration
+            packages: clang
 
     steps:
     - name: Install dependencies
       run: |
         set -e
+        export DEBIAN_FRONTEND=noninteractive
         apt update
-        apt-get install -y autoconf pkg-config libfontconfig1-dev libfreetype6-dev libltdl-dev ${{ matrix.compiler }}
+        apt-get install -y autoconf libfontconfig1-dev libfreetype6-dev libltdl-dev make pkg-config ${{ matrix.packages }}
 
     - name: Clone msttcorefonts
       uses: actions/checkout@v3

@@ -140,8 +140,10 @@ struct _BlobInfo
   MagickBooleanType
     exempt,
     synchronize,
-    status,
     temporary;
+
+  int
+    status;
 
   StreamType
     type;
@@ -197,7 +199,7 @@ struct _CustomStreamInfo
   Forward declarations.
 */
 static int
-  SyncBlob(Image *);
+  SyncBlob(const Image *);
 
 /*
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -593,9 +595,9 @@ MagickExport BlobInfo *CloneBlobInfo(const BlobInfo *blob_info)
 
 static inline void ThrowBlobException(BlobInfo *blob_info)
 {
-  if ((blob_info->status == MagickFalse) && (errno != 0))
+  if ((blob_info->status == 0) && (errno != 0))
     blob_info->error_number=errno;
-  blob_info->status=MagickTrue;
+  blob_info->status=(-1);
 }
 
 MagickExport MagickBooleanType CloseBlob(Image *image)
@@ -616,12 +618,14 @@ MagickExport MagickBooleanType CloseBlob(Image *image)
   blob_info=image->blob;
   if ((blob_info == (BlobInfo *) NULL) || (blob_info->type == UndefinedStream))
     return(MagickTrue);
-  status=SyncBlob(image);
+  if (SyncBlob(image) != 0)
+    ThrowBlobException(blob_info);
+  status=blob_info->status;
   switch (blob_info->type)
   {
     case UndefinedStream:
-    case StandardStream:
       break;
+    case StandardStream:
     case FileStream:
     case PipeStream:
     {
@@ -689,7 +693,7 @@ MagickExport MagickBooleanType CloseBlob(Image *image)
   if (blob_info->exempt != MagickFalse)
     {
       blob_info->type=UndefinedStream;
-      return(blob_info->status);
+      return(blob_info->status != 0 ? MagickFalse : MagickTrue);
     }
   switch (blob_info->type)
   {
@@ -747,7 +751,7 @@ MagickExport MagickBooleanType CloseBlob(Image *image)
       break;
   }
   (void) DetachBlob(blob_info);
-  return(blob_info->status);
+  return(blob_info->status != 0 ? MagickFalse : MagickTrue);
 }
 
 /*
@@ -824,8 +828,6 @@ MagickExport Image *CustomStreamToImage(const ImageInfo *image_info,
       (void) FormatLocaleString(blob_info->filename,MagickPathExtent,"%s:%s",
         blob_info->magick,filename);
       image=ReadImage(blob_info,exception);
-      if (image != (Image *) NULL)
-        (void) CloseBlob(image);
     }
   else
     {
@@ -897,7 +899,6 @@ MagickExport Image *CustomStreamToImage(const ImageInfo *image_info,
                   image_info->filename,MagickPathExtent);
                 (void) CopyMagickString(images->magick,magick_info->name,
                   MagickPathExtent);
-                (void) CloseBlob(images);
                 images=GetNextImageInList(images);
               }
             }
@@ -907,6 +908,9 @@ MagickExport Image *CustomStreamToImage(const ImageInfo *image_info,
       (void) RelinquishUniqueFileResource(unique);
     }
   blob_info=DestroyImageInfo(blob_info);
+  if (image != (Image *) NULL)
+    if (CloseBlob(image) == MagickFalse)
+      image=DestroyImageList(image);
   return(image);
 }
 
@@ -1045,6 +1049,7 @@ MagickExport void *DetachBlob(BlobInfo *blob_info)
   blob_info->mapped=MagickFalse;
   blob_info->length=0;
   blob_info->offset=0;
+  blob_info->mode=UndefinedBlobMode;
   blob_info->eof=MagickFalse;
   blob_info->error=0;
   blob_info->exempt=MagickFalse;
@@ -1723,9 +1728,9 @@ MagickExport MagickBooleanType GetBlobError(const Image *image)
   assert(image->signature == MagickCoreSignature);
   if (IsEventLogging() != MagickFalse)
     (void) LogMagickEvent(TraceEvent,GetMagickModule(),"%s",image->filename);
-  if ((image->blob->status != MagickFalse) && (image->blob->error_number != 0))
+  if ((image->blob->status != 0) && (image->blob->error_number != 0))
     errno=image->blob->error_number;
-  return(image->blob->status);
+  return(image->blob->status == 0 ? MagickFalse : MagickTrue);
 }
 
 /*
@@ -1860,6 +1865,8 @@ MagickExport MagickSizeType GetBlobSize(const Image *image)
   assert(image->blob != (BlobInfo *) NULL);
   if (IsEventLogging() != MagickFalse)
     (void) LogMagickEvent(TraceEvent,GetMagickModule(),"%s",image->filename);
+  if (SyncBlob(image) != 0)
+    return(0);
   blob_info=image->blob;
   extent=0;
   switch (blob_info->type)
@@ -2118,7 +2125,6 @@ MagickExport void *ImageToBlob(const ImageInfo *image_info,
               (void) FormatLocaleString(image->filename,MagickPathExtent,
                 "%s:%s",image->magick,unique);
               status=WriteImage(blob_info,image,exception);
-              (void) CloseBlob(image);
               (void) fclose(blob_info->file);
               if (status != MagickFalse)
                 blob=FileToBlob(unique,SIZE_MAX,length,exception);
@@ -2213,7 +2219,6 @@ MagickExport void ImageToCustomStream(const ImageInfo *image_info,Image *image,
       (void) CloseBlob(image);
       *image->filename='\0';
       (void) WriteImage(clone_info,image,exception);
-      (void) CloseBlob(image);
     }
   else
     {
@@ -2257,7 +2262,6 @@ MagickExport void ImageToCustomStream(const ImageInfo *image_info,Image *image,
           (void) FormatLocaleString(image->filename,MagickPathExtent,
             "%s:%s",image->magick,unique);
           status=WriteImage(clone_info,image,exception);
-          (void) CloseBlob(image);
           if (status != MagickFalse)
             {
               (void) fseek(clone_info->file,0,SEEK_SET);
@@ -2529,7 +2533,6 @@ MagickExport void *ImagesToBlob(const ImageInfo *image_info,Image *images,
               (void) FormatLocaleString(filename,MagickPathExtent,"%s:%s",
                 images->magick,unique);
               status=WriteImages(blob_info,images,filename,exception);
-              (void) CloseBlob(images);
               (void) fclose(blob_info->file);
               if (status != MagickFalse)
                 blob=FileToBlob(unique,SIZE_MAX,length,exception);
@@ -2624,7 +2627,6 @@ MagickExport void ImagesToCustomStream(const ImageInfo *image_info,
       (void) CloseBlob(images);
       *images->filename='\0';
       (void) WriteImages(clone_info,images,images->filename,exception);
-      (void) CloseBlob(images);
     }
   else
     {
@@ -2669,7 +2671,6 @@ MagickExport void ImagesToCustomStream(const ImageInfo *image_info,
           (void) FormatLocaleString(filename,MagickPathExtent,"%s:%s",
             images->magick,unique);
           status=WriteImages(clone_info,images,filename,exception);
-          (void) CloseBlob(images);
           if (status != MagickFalse)
             {
               (void) fseek(clone_info->file,0,SEEK_SET);
@@ -3564,7 +3565,7 @@ MagickExport MagickBooleanType OpenBlob(const ImageInfo *image_info,
                 (void) SetStreamBuffering(image_info,blob_info);
               }
           }
-  blob_info->status=MagickFalse;
+  blob_info->status=0;
   blob_info->error_number=0;
   if (blob_info->type != UndefinedStream)
     blob_info->size=GetBlobSize(image);
@@ -5494,18 +5495,19 @@ MagickExport void SetCustomStreamWriter(CustomStreamInfo *custom_stream,
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 %  SyncBlob() flushes the datastream if it is a file or synchronizes the data
-%  attributes if it is an blob.
+%  attributes if it is an blob.  It returns 0 on success; otherwise, it returns
+%  -1 and set errno to indicate the error.
 %
 %  The format of the SyncBlob method is:
 %
-%      int SyncBlob(Image *image)
+%      int SyncBlob(const Image *image)
 %
 %  A description of each parameter follows:
 %
 %    o image: the image.
 %
 */
-static int SyncBlob(Image *image)
+static int SyncBlob(const Image *image)
 {
   BlobInfo
     *magick_restrict blob_info;
@@ -5516,7 +5518,6 @@ static int SyncBlob(Image *image)
   assert(image != (Image *) NULL);
   assert(image->signature == MagickCoreSignature);
   assert(image->blob != (BlobInfo *) NULL);
-  assert(image->blob->type != UndefinedStream);
   if (IsEventLogging() != MagickFalse)
     (void) LogMagickEvent(TraceEvent,GetMagickModule(),"%s",image->filename);
   blob_info=image->blob;

@@ -2701,7 +2701,10 @@ static Image *ReadPSDImage(const ImageInfo *image_info,ExceptionInfo *exception)
       }
       profile=DestroyStringInfo(profile);
     }
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
+  if (status == MagickFalse)
+    return(DestroyImageList(image));
   return(GetFirstImageInList(image));
 }
 
@@ -4020,6 +4023,7 @@ static MagickBooleanType WritePSDImage(const ImageInfo *image_info,
         status=MagickFalse;
       image->compression=compression;
     }
-  (void) CloseBlob(image);
+  if (CloseBlob(image) == MagickFalse)
+    status=MagickFalse;
   return(status);
 }
