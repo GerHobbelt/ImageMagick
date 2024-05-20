@@ -26,7 +26,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data,size_t Size)
   double
     degrees;
 
-  if (IsInvalidSize(Size,sizeof(double),0))
+  if (IsInvalidSize(Size,sizeof(double)))
     return(0);
   degrees=*reinterpret_cast<const double *>(Data);
   if (!isfinite(degrees))
@@ -38,6 +38,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data,size_t Size)
 
     Magick::Image
       image;
+
+#if defined(BUILD_MAIN)
+    std::string
+      image_data;
+
+    image_data=blob.base64();
+#endif
 
     image.read(blob);
     image.rotate(degrees);

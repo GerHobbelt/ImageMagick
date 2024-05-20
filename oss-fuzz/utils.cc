@@ -22,12 +22,11 @@
 #define FUZZ_MAX_SIZE 2048
 #endif
 
-static bool IsInvalidSize(const size_t size,const size_t min = 1,
-  const size_t max = MagickPathExtent)
+static bool IsInvalidSize(const size_t size,const size_t min = 1)
 {
   if (size < min)
     return(true);
-  if (max > 0 && size > max)
+  if (size > 8192)
     return(true);
   return(false);
 }
@@ -54,10 +53,10 @@ public:
 
 FuzzingInitializer fuzzingInitializer;
 
-#if BUILD_MAIN
+#if defined(BUILD_MAIN)
 #include "encoder_format.h"
 
 EncoderFormat encoderFormat;
 
 #define FUZZ_ENCODER encoderFormat.get()
-#endif // BUILD_MAIN
+#endif

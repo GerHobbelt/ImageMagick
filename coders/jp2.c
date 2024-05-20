@@ -283,6 +283,9 @@ static Image *ReadJP2Image(const ImageInfo *image_info,ExceptionInfo *exception)
   opj_codec_t
     *jp2_codec;
 
+  opj_codestream_info_v2_t
+    *jp2_codestream_info;
+
   opj_dparameters_t
     parameters;
 
@@ -363,6 +366,17 @@ static Image *ReadJP2Image(const ImageInfo *image_info,ExceptionInfo *exception)
       opj_destroy_codec(jp2_codec);
       ThrowReaderException(DelegateError,"UnableToDecodeImageFile");
     }
+  jp2_codestream_info=opj_get_cstr_info(jp2_codec);
+  if (AcquireMagickResource(ListLengthResource,(MagickSizeType)
+       jp2_codestream_info->m_default_tile_info.numlayers) == MagickFalse)
+    {
+      opj_destroy_cstr_info(&jp2_codestream_info);
+      opj_stream_destroy(jp2_stream);
+      opj_destroy_codec(jp2_codec);
+      opj_image_destroy(jp2_image);
+      ThrowReaderException(ResourceLimitError,"ListLengthExceedsLimit");
+    }
+  opj_destroy_cstr_info(&jp2_codestream_info);
   jp2_status=OPJ_TRUE;
   if ((AcquireMagickResource(WidthResource,(size_t) jp2_image->comps[0].w) == MagickFalse) ||
       (AcquireMagickResource(WidthResource,(size_t) jp2_image->x1) == MagickFalse) ||
@@ -413,7 +427,12 @@ static Image *ReadJP2Image(const ImageInfo *image_info,ExceptionInfo *exception)
       ThrowReaderException(DelegateError,"UnableToDecodeImageFile");
     }
   if (jp2_image->numcomps >= MaxPixelChannels)
-    ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+    {
+      opj_stream_destroy(jp2_stream);
+      opj_destroy_codec(jp2_codec);
+      opj_image_destroy(jp2_image);
+      ThrowReaderException(CorruptImageError,"ImproperImageHeader");
+    }
   for (i=0; i < (ssize_t) jp2_image->numcomps; i++)
   {
     if ((jp2_image->comps[i].dx == 0) || (jp2_image->comps[i].dy == 0) ||
